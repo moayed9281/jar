@@ -1,0 +1,143 @@
+# ============ DiamondCraft config ============
+# All text uses MiniMessage: <red>, <gold>, <bold>, <gradient:red:blue>, <click:...> etc.
+# Reload with /smpcore reload (menu style change needs a restart).
+
+prefix: "<dark_gray>[<aqua>DiamondCraft<dark_gray>] <gray>"
+
+menus:
+  # true = Minecraft pause-menu style button screens (Paper 1.21.6+).
+  # Automatically falls back to chest menus on older versions.
+  use-dialogs: true
+  # With Floodgate installed, Bedrock players automatically get native Bedrock forms.
+  use-bedrock-forms: true
+  home-title: "<aqua>DiamondCraft <gray>| <gold>Homes ({used}/{limit})"
+  home-info: "<gray>Click a home to manage it."
+  home-button: "<yellow>{home}"
+  set-home-button: "<green>+ Set new home here"
+  home-actions-title: "<aqua>DiamondCraft <gray>| <gold>{home}"
+  teleport-button: "<green>Teleport"
+  delete-button: "<red>Delete"
+  back-button: "<gray>Back"
+  close-button: "<gray>Close"
+  tpa-title: "<aqua>DiamondCraft <gray>| <gold>Teleport to a player"
+  tpahere-title: "<aqua>DiamondCraft <gray>| <gold>Bring a player to you"
+  tpa-info: "<gray>Pick a player to send a request to."
+  tpa-no-players: "<red>No other players are online."
+  incoming-title: "<aqua>DiamondCraft <gray>| <gold>Teleport request"
+  incoming-to-you: "<yellow>{player}</yellow> wants to teleport to you."
+  incoming-here: "<yellow>{player}</yellow> wants you to teleport to them."
+  accept-button: "<green>Accept"
+  deny-button: "<red>Deny"
+
+homes:
+  default-limit: 1
+  # Home limits per LuckPerms group. The player gets the HIGHEST one they match.
+  # Works by checking the permission "group.<name>" which LuckPerms gives players.
+  group-limits:
+    default: 1
+    vip: 3
+    vip+: 5
+    mvp: 8
+    admin: 50
+  # You can ALSO use permissions: smpcore.homes.<number> e.g. smpcore.homes.10
+  # and smpcore.homes.unlimited for no limit.
+  max-name-length: 16
+  # /home with no name opens the menu (false = teleports to "home" directly)
+  open-menu-on-home: true
+
+teleport:
+  delay: 3               # seconds standing still (0 = instant)
+  cancel-on-move: true
+
+tpa:
+  expire: 60             # seconds before a request runs out
+  cooldown: 10           # seconds between sending requests
+  incoming-menu: true    # pop up an Accept/Deny screen for the target
+
+punishments:
+  default-ban-reason: "No reason given"
+  default-kick-reason: "No reason given"
+  default-timeout-reason: "No reason given"
+  permanent-text: "Permanent"
+  date-format: "yyyy-MM-dd HH:mm z"
+  broadcast: true
+  # Duration examples: 30m, 2h, 7d, 1w, 1d12h, perm
+
+# Screens shown to the player. Placeholders: {player} {reason} {staff} {duration} {expires}
+screens:
+  ban:
+    - "<red><bold>You are banned"
+    - ""
+    - "<gray>Reason: <white>{reason}"
+    - "<gray>Duration: <white>{duration}"
+    - "<gray>Expires: <white>{expires}"
+    - "<gray>By: <white>{staff}"
+  kick:
+    - "<red><bold>You were kicked"
+    - ""
+    - "<gray>Reason: <white>{reason}"
+  timeout:
+    - "<gold><bold>You are in timeout"
+    - ""
+    - "<gray>Reason: <white>{reason}"
+    - "<gray>You can rejoin in: <white>{duration}"
+    - "<gray>Expires: <white>{expires}"
+
+messages:
+  player-only: "<red>Only players can use this."
+  player-not-found: "<red>Player not found."
+  bad-duration: "<red>Invalid duration. Use e.g. 30m, 2h, 7d, 1w."
+  reloaded: "<green>Config reloaded."
+  home-invalid-name: "<red>Home names: letters, numbers, - and _ only (max {max} chars)."
+  home-limit: "<red>You reached your home limit (<white>{limit}</white>)."
+  home-set: "<green>Home <yellow>{home}</yellow> set."
+  home-deleted: "<yellow>{home}</yellow> deleted."
+  home-none: "<red>You have no homes. Use /sethome."
+  home-not-found: "<red>No home named <yellow>{home}</yellow>."
+  tp-countdown: "<gray>Teleporting in <white>{seconds}s</white>... don't move."
+  tp-cancelled: "<red>Teleport cancelled because you moved."
+  tp-already: "<red>You are already teleporting."
+  tp-done: "<green>Teleported to <yellow>{target}</yellow>."
+  tpa-self: "<red>You can't teleport to yourself."
+  tpa-cooldown: "<red>Wait <white>{seconds}s</white> before sending another request."
+  tpa-sent: "<green>Request sent to <yellow>{player}</yellow>."
+  tpa-received: "<yellow>{player}</yellow> wants to teleport to you. <green><click:run_command:'/tpaccept {player}'>[Accept]</click> <red><click:run_command:'/tpdeny {player}'>[Deny]</click>"
+  tpahere-received: "<yellow>{player}</yellow> wants you to teleport to them. <green><click:run_command:'/tpaccept {player}'>[Accept]</click> <red><click:run_command:'/tpdeny {player}'>[Deny]</click>"
+  tpa-none: "<red>You have no pending requests."
+  tpa-offline: "<red>That player went offline."
+  tpa-accepted: "<green>Request accepted."
+  tpa-accepted-sender: "<yellow>{player}</yellow> accepted your request."
+  tpa-denied: "<yellow>Request denied."
+  tpa-denied-sender: "<yellow>{player}</yellow> denied your request."
+  tpa-cancelled: "<yellow>Your requests were cancelled."
+  usage-ban: "<red>/ban <player> [duration] [reason]"
+  usage-unban: "<red>/unban <player>"
+  usage-kick: "<red>/kick <player> [reason]"
+  usage-timeout: "<red>/timeout <player> <duration> [reason]"
+  usage-untimeout: "<red>/untimeout <player>"
+  not-banned: "<red>That player is not banned."
+  not-timed-out: "<red>That player is not in timeout."
+  done-ban: "<green>Banned <yellow>{player}</yellow> ({duration})."
+  done-unban: "<green>Unbanned <yellow>{player}</yellow>."
+  done-kick: "<green>Kicked <yellow>{player}</yellow>."
+  done-timeout: "<green>Timed out <yellow>{player}</yellow> for {duration}."
+  done-untimeout: "<green>Removed timeout from <yellow>{player}</yellow>."
+  broadcast-ban: "<red>{player} was banned by {staff}. <gray>Reason: {reason} ({duration})"
+  broadcast-kick: "<red>{player} was kicked by {staff}. <gray>Reason: {reason}"
+  broadcast-timeout: "<gold>{player} was timed out by {staff} for {duration}. <gray>Reason: {reason}"
+  player-unknown: "<red>Couldn't find that player. Bedrock players: include the prefix, e.g. .Name"
+
+# Button in the Esc (pause) menu. Java 1.21.6+ only. Needs a server RESTART to change.
+# Buttons run the command for the player (no leading slash).
+esc-menu:
+  enabled: true
+  title: "<aqua><bold>DiamondCraft"
+  body: "<gray>Homes and teleport requests"
+  buttons:
+    - {label: "<yellow>Homes", command: "homes"}
+    - {label: "<green>Set home here", command: "sethome"}
+    - {label: "<aqua>Teleport to a player (TPA)", command: "tpa"}
+    - {label: "<aqua>Bring a player to me (TPA Here)", command: "tpahere"}
+    - {label: "<green>Accept request", command: "tpaccept"}
+    - {label: "<red>Deny request", command: "tpdeny"}
+    - {label: "<gray>Cancel my request", command: "tpacancel"}
