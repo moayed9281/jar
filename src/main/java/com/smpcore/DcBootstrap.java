@@ -8,7 +8,7 @@ public final class DcBootstrap implements PluginBootstrap {
     @Override
     public void bootstrap(BootstrapContext context) {
         try {
-            Class.forName("io.papermc.paper.dialog.Dialog");
+            Class.forName("io.papermc.paper.registry.data.dialog.DialogBase", false, DcBootstrap.class.getClassLoader());
             EscMenu.register(context);
         } catch (Throwable t) {
             context.getLogger().warn("Esc menu not available on this version: " + t);

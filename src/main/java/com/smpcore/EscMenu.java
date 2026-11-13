@@ -1,6 +1,5 @@
 package com.smpcore;
 
-import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import io.papermc.paper.registry.RegistryKey;
@@ -60,16 +59,26 @@ final class EscMenu {
         ActionButton close = ActionButton.create(
                 mm.deserialize(cfg.getString("menus.close-button", "<gray>Close")), null, 200, null);
 
-        ctx.getLifecycleManager().registerEventHandler(RegistryEvents.DIALOG.compose().newHandler(event ->
+        ctx.getLifecycleManager().registerEventHandler(RegistryEvents.DIALOG.compose().newHandler(event -> {
+            try {
                 event.registry().register(DialogKeys.create(key), b -> b
                         .base(DialogBase.builder(title)
                                 .externalTitle(title)
                                 .canCloseWithEscape(true)
                                 .body(List.of(DialogBody.plainMessage(body)))
                                 .build())
-                        .type(DialogType.multiAction(buttons, close, 1)))));
+                        .type(DialogType.multiAction(buttons, close, 1)));
+            } catch (Throwable t) {
+                ctx.getLogger().warn("Esc menu dialog could not be registered: " + t);
+            }
+        }));
 
-        ctx.getLifecycleManager().registerEventHandler(LifecycleEvents.TAGS.postFlatten(RegistryKey.DIALOG), event ->
-                event.registrar().addToTag(DialogTagKeys.PAUSE_SCREEN_ADDITIONS, Set.of(DialogKeys.create(key))));
+        ctx.getLifecycleManager().registerEventHandler(LifecycleEvents.TAGS.postFlatten(RegistryKey.DIALOG), event -> {
+            try {
+                event.registrar().addToTag(DialogTagKeys.PAUSE_SCREEN_ADDITIONS, Set.of(DialogKeys.create(key)));
+            } catch (Throwable t) {
+                ctx.getLogger().warn("Esc menu tag could not be set: " + t);
+            }
+        });
     }
 }

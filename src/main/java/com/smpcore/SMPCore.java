@@ -87,7 +87,7 @@ public final class SMPCore extends JavaPlugin {
         Menus java = null;
         if (getConfig().getBoolean("menus.use-dialogs", true)) {
             try {
-                Class.forName("io.papermc.paper.dialog.Dialog");
+                Class.forName("io.papermc.paper.registry.data.dialog.DialogBase", false, SMPCore.class.getClassLoader());
                 java = new DialogMenus(this);
             } catch (Throwable ignored) {
                 getLogger().info("Dialogs not available on this version, using chest menus.");
