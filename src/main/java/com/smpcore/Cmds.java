@@ -47,6 +47,30 @@ public final class Cmds implements TabExecutor {
         return null;
     }
 
+    private boolean econOn(CommandSender s) {
+        if (!plugin.economy.enabled()) {
+            plugin.msg.send(s, "economy-disabled");
+            return false;
+        }
+        return true;
+    }
+
+    /** 1500, 1.5k, 2m, 1b. Returns -1 when invalid. */
+    private double parseAmount(String raw) {
+        try {
+            String t = raw.replace(",", "").toLowerCase(Locale.ROOT);
+            double mult = 1;
+            if (t.endsWith("k")) mult = 1e3;
+            else if (t.endsWith("m")) mult = 1e6;
+            else if (t.endsWith("b")) mult = 1e9;
+            if (mult != 1) t = t.substring(0, t.length() - 1);
+            double v = Double.parseDouble(t) * mult;
+            return Double.isNaN(v) || Double.isInfinite(v) || v < 0 ? -1 : v;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
     private String perm() {
         return plugin.getConfig().getString("punishments.permanent-text", "Permanent");
     }
@@ -254,6 +278,146 @@ public final class Cmds implements TabExecutor {
                     msg.send(s, "reloaded");
                 }
             }
+            case "balance" -> {
+                if (!econOn(s)) return true;
+                if (a.length == 0) {
+                    Player p = player(s);
+                    if (p == null) return true;
+                    msg.send(p, "balance-self", "balance", plugin.economy.format(plugin.economy.get(p.getUniqueId())));
+                } else {
+                    plugin.players.resolve(a[0], t -> {
+                        if (t == null) {
+                            msg.send(s, "player-unknown");
+                            return;
+                        }
+                        msg.send(s, "balance-other", "player", t.name(),
+                                "balance", plugin.economy.format(plugin.economy.get(t.id())));
+                    });
+                }
+            }
+            case "pay" -> {
+                if (!econOn(s)) return true;
+                Player p = player(s);
+                if (p == null) return true;
+                if (a.length == 0) {
+                    plugin.gui.openPay(p);
+                    return true;
+                }
+                if (a.length < 2) {
+                    msg.send(p, "pay-usage");
+                    return true;
+                }
+                final double amt = parseAmount(a[1]);
+                if (amt <= 0) {
+                    msg.send(p, "pay-invalid");
+                    return true;
+                }
+                plugin.players.resolve(a[0], t -> {
+                    if (t == null) {
+                        msg.send(p, "player-unknown");
+                        return;
+                    }
+                    plugin.economy.pay(p, t.id(), t.name(), amt);
+                });
+            }
+            case "baltop" -> {
+                if (!econOn(s)) return true;
+                msg.send(s, "baltop-header");
+                int rank = 1;
+                for (Map.Entry<java.util.UUID, Double> e : plugin.economy.top(10)) {
+                    s.sendMessage(msg.get("baltop-line", "rank", String.valueOf(rank++),
+                            "player", plugin.players.nameFor(e.getKey()),
+                            "balance", plugin.economy.format(e.getValue())));
+                }
+            }
+            case "eco" -> {
+                if (!econOn(s)) return true;
+                if (a.length < 3) {
+                    msg.send(s, "eco-usage");
+                    return true;
+                }
+                final String sub = a[0].toLowerCase(Locale.ROOT);
+                final double amt = parseAmount(a[2]);
+                if (!List.of("give", "take", "set").contains(sub) || amt < 0 || (!sub.equals("set") && amt == 0)) {
+                    msg.send(s, "eco-usage");
+                    return true;
+                }
+                plugin.players.resolve(a[1], t -> {
+                    if (t == null) {
+                        msg.send(s, "player-unknown");
+                        return;
+                    }
+                    EconomyManager e = plugin.economy;
+                    switch (sub) {
+                        case "give" -> e.deposit(t.id(), amt);
+                        case "take" -> e.set(t.id(), e.get(t.id()) - amt);
+                        default -> e.set(t.id(), amt);
+                    }
+                    msg.send(s, "eco-done", "player", t.name(), "balance", e.format(e.get(t.id())));
+                });
+            }
+            case "settings" -> {
+                Player p = player(s);
+                if (p != null) plugin.gui.openSettings(p);
+            }
+            case "menu" -> {
+                Player p = player(s);
+                if (p != null) plugin.gui.openMain(p);
+            }
+            case "status" -> {
+                Player p = player(s);
+                if (p != null) plugin.gui.openStatus(p);
+            }
+            case "tpmenu" -> {
+                Player p = player(s);
+                if (p != null) plugin.gui.openTeleportMenu(p);
+            }
+            case "tpfav" -> {
+                Player p = player(s);
+                if (p == null) return true;
+                if (a.length == 0) {
+                    plugin.gui.openFavorites(p);
+                    return true;
+                }
+                final String sub = a[0].toLowerCase(Locale.ROOT);
+                if (a.length < 2 || !(sub.equals("add") || sub.equals("remove"))) {
+                    msg.send(p, "fav-usage");
+                    return true;
+                }
+                plugin.players.resolve(a[1], t -> {
+                    if (t == null) {
+                        msg.send(p, "player-unknown");
+                        return;
+                    }
+                    if (sub.equals("add")) plugin.gui.addFavorite(p, t.id(), t.name());
+                    else if (plugin.favorites.remove(p.getUniqueId(), t.id()))
+                        msg.send(p, "fav-removed", "player", t.name());
+                    else msg.send(p, "fav-not", "player", t.name());
+                });
+            }
+            case "rtp" -> {
+                Player p = player(s);
+                if (p == null) return true;
+                if (!plugin.rtp.rtpOpen()) {
+                    msg.send(p, "rtp-closed");
+                    return true;
+                }
+                if (a.length == 0) plugin.gui.openRtp(p);
+                else plugin.rtp.start(p, a[0].toLowerCase(Locale.ROOT));
+            }
+            case "rtpq" -> {
+                Player p = player(s);
+                if (p == null) return true;
+                if (a.length == 0) {
+                    plugin.gui.openRtpQueue(p);
+                } else if (a[0].equalsIgnoreCase("join")) {
+                    plugin.rtp.joinQueue(p);
+                } else if (a[0].equalsIgnoreCase("leave")) {
+                    plugin.rtp.leaveQueue(p);
+                } else {
+                    msg.send(p, "rtpq-usage");
+                }
+            }
             default -> { }
         }
         return true;
@@ -274,8 +438,15 @@ public final class Cmds implements TabExecutor {
                 case "unban" -> out.addAll(plugin.punish.names(PunishManager.Type.BAN));
                 case "untimeout" -> out.addAll(plugin.punish.names(PunishManager.Type.TIMEOUT));
                 case "smpcore" -> out.add("reload");
+                case "pay", "balance" -> Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
+                case "eco" -> out.addAll(List.of("give", "take", "set"));
+                case "tpfav" -> out.addAll(List.of("add", "remove"));
+                case "rtp" -> out.addAll(plugin.rtp.openWorldKeys());
+                case "rtpq" -> out.addAll(List.of("join", "leave"));
                 default -> { }
             }
+        } else if (a.length == 2 && (cmd.equals("eco") || cmd.equals("tpfav"))) {
+            Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
         } else if (a.length == 2 && (cmd.equals("ban") || cmd.equals("timeout"))) {
             out.addAll(List.of("30m", "1h", "6h", "1d", "7d", "30d", "perm"));
         }

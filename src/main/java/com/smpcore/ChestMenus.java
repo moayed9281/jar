@@ -38,6 +38,10 @@ public final class ChestMenus implements Menus, Listener {
 
     @Override
     public void open(Player p, Component title, Component message, List<Entry> entries, Entry back) {
+        if (entries.isEmpty() && back == null) {
+            if (message != null) p.sendMessage(message);
+            return;
+        }
         int cap = back != null ? 53 : 54;
         List<Entry> list = new ArrayList<>(entries.size() > cap ? entries.subList(0, cap) : entries);
         int count = list.size() + (back != null ? 1 : 0);

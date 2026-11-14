@@ -62,6 +62,22 @@ public final class Players {
         Bukkit.getScheduler().runTask(plugin, () -> cb.accept(r));
     }
 
+    /** UUID for a name without going async: online, cached, else a plain Bukkit lookup. */
+    public UUID idFor(String name) {
+        Player on = Bukkit.getPlayerExact(name);
+        if (on != null) return on.getUniqueId();
+        Resolved r = byName.get(name.toLowerCase());
+        if (r != null) return r.id();
+        return Bukkit.getOfflinePlayer(name).getUniqueId();
+    }
+
+    public String nameFor(UUID id) {
+        Player on = Bukkit.getPlayer(id);
+        if (on != null) return on.getName();
+        for (Resolved r : byName.values()) if (r.id().equals(id)) return r.name();
+        return id.toString().substring(0, 8);
+    }
+
     /** Calls cb on the main thread; null means the player could not be found. */
     public void resolve(String input, Consumer<Resolved> cb) {
         Player on = Bukkit.getPlayerExact(input);

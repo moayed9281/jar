@@ -1,15 +1,118 @@
 # ============ DiamondCraft config ============
-# All text uses MiniMessage: <red>, <gold>, <bold>, <gradient:red:blue>, <click:...> etc.
-# Reload with /smpcore reload (menu style change needs a restart).
+# Text uses MiniMessage: <red>, <gold>, <bold>, <gradient:red:blue> ...
+# Reload with /smpcore reload.  (Esc menu + menu style changes need a server RESTART.)
 
 prefix: "<dark_gray>[<aqua>DiamondCraft<dark_gray>] <gray>"
 
+# ---------------------------------------------------------------- HOMES
+homes:
+  # Homes every normal player gets for free
+  default-limit: 1
+  # Home limits per LuckPerms GROUP NAME. A player gets the HIGHEST one they match.
+  # Rename the groups to your LuckPerms group names and change the numbers.
+  # Add or remove lines as you like (5 VIP ranks are set up as an example).
+  group-limits:
+    vip: 3
+    vip2: 5
+    vip3: 8
+    vip4: 12
+    vip5: 20
+  # You can ALSO use permissions: smpcore.homes.<number> (e.g. smpcore.homes.10)
+  # and smpcore.homes.unlimited
+  max-name-length: 16
+  open-menu-on-home: true
+
+# ---------------------------------------------------------------- TELEPORT / TPA
+teleport:
+  delay: 3
+  cancel-on-move: true
+
+tpa:
+  tpa-enabled: true                  # false = /tpa is disabled for everyone
+  tpahere-enabled: true              # false = /tpahere is disabled for everyone
+  tpa-min-playtime-minutes: 0        # playtime needed before /tpa (0 = no limit)
+  tpahere-min-playtime-minutes: 0    # playtime needed before /tpahere (0 = no limit)
+  expire: 60
+  cooldown: 10
+  incoming-menu: true
+  # permission smpcore.bypass.playtime skips the playtime rule
+
+# ---------------------------------------------------------------- RTP (random teleport)
+rtp:
+  enabled: true              # false = CLOSES /rtp AND /rtpq completely (and hides their buttons)
+  cooldown: 30               # seconds between random teleports (0 = none)
+  max-attempts: 40           # tries to find a safe spot before giving up
+  # Each world below can be closed on its own: set enabled: false
+  # (e.g. enabled: false on "end" closes RTP to the End, on "nether" closes the Nether).
+  # "world" is the real world folder name of your server.
+  # Distances are measured from the center. A random spot between min and max is used.
+  worlds:
+    overworld:
+      enabled: true
+      world: "world"
+      name: "Overworld"
+      color: "<green>"
+      icon: GRASS_BLOCK
+      center-x: 0
+      center-z: 0
+      min-radius: 500
+      max-radius: 5000
+      price: 0               # needs economy.enabled; 0 = free
+    nether:
+      enabled: true
+      world: "world_nether"
+      name: "Nether"
+      color: "<red>"
+      icon: NETHERRACK
+      center-x: 0
+      center-z: 0
+      min-radius: 100
+      max-radius: 1500
+      price: 0
+    end:
+      enabled: true
+      world: "world_the_end"
+      name: "The End"
+      color: "<light_purple>"
+      icon: END_STONE
+      center-x: 0
+      center-z: 0
+      min-radius: 1000       # outer End islands start around 1000 blocks out
+      max-radius: 3000
+      price: 0
+  # RTP Queue (/rtpq): players join the queue; when enough are waiting, they all
+  # get teleported to the SAME random spot a few seconds later.
+  queue:
+    enabled: true            # false = closes only /rtpq
+    world: overworld         # which world above the queue uses
+    players: 2               # players needed to start
+    match-delay: 3           # seconds after enough players joined
+
+# ---------------------------------------------------------------- ECONOMY
+economy:
+  enabled: true                      # false = economy, /pay, /balance and Vault hook are off
+  starting-balance: 100
+  symbol: "$"
+  currency-single: "dollar"
+  currency-plural: "dollars"
+  min-pay: 1
+  pay-presets: [100, 1000, 10000, 100000]   # amounts shown in the Pay menu
+  # Needs the Vault plugin so EconomyShopGUI can use this economy.
+  # Do not run another economy plugin (EssentialsX etc.) at the same time.
+
+favorites:
+  max: 20                            # favourite friends per player
+
+# ---------------------------------------------------------------- SETTINGS MENU
+settings:
+  night-vision: true                 # show the Night Vision toggle
+
+# ---------------------------------------------------------------- MENUS
 menus:
-  # true = Minecraft pause-menu style button screens (Paper 1.21.6+).
-  # Automatically falls back to chest menus on older versions.
   use-dialogs: true
-  # With Floodgate installed, Bedrock players automatically get native Bedrock forms.
   use-bedrock-forms: true
+  main-title: "<aqua><bold>DiamondCraft"
+  main-info: "<gray>Pick an option."
   home-title: "<aqua>DiamondCraft <gray>| <gold>Homes ({used}/{limit})"
   home-info: "<gray>Click a home to manage it."
   home-button: "<yellow>{home}"
@@ -28,32 +131,71 @@ menus:
   incoming-here: "<yellow>{player}</yellow> wants you to teleport to them."
   accept-button: "<green>Accept"
   deny-button: "<red>Deny"
+  settings-title: "<aqua>DiamondCraft <gray>| <gold>Settings"
+  nightvision-button: "<yellow>Night Vision: {state}"
+  tpa-requests-button: "<yellow>Accept teleport requests: {state}"
+  state-on: "<green>ON"
+  state-off: "<red>OFF"
+  pay-title: "<aqua>DiamondCraft <gray>| <gold>Pay a player"
+  pay-info: "<gray>Pick a player to pay."
+  pay-amount-title: "<aqua>DiamondCraft <gray>| <gold>Pay {player}"
+  pay-button: "<green>Pay {amount}"
+  teleport-title: "<aqua>DiamondCraft <gray>| <gold>Teleport"
+  teleport-info: "<gray>Choose how you want to teleport."
+  tpa-menu-button: "<aqua>Teleport to a player <gray>(TPA)"
+  tpahere-menu-button: "<aqua>Bring a player to me <gray>(TPA Here)"
+  favorites-button: "<gold>★ Favorites"
+  fav-title: "<aqua>DiamondCraft <gray>| <gold>Favorites"
+  fav-info: "<gray>Click a friend to teleport faster."
+  fav-empty: "<gray>No favorites yet. Add a friend below."
+  fav-add-button: "<green>+ Add a friend"
+  fav-add-title: "<aqua>DiamondCraft <gray>| <gold>Add a friend"
+  fav-actions-title: "<aqua>DiamondCraft <gray>| <gold>{player}"
+  fav-tpa-button: "<green>Teleport to them (TPA)"
+  fav-tpahere-button: "<green>Bring them to me (TPA Here)"
+  fav-remove-button: "<red>Remove from favorites"
+  rtp-title: "<aqua>DiamondCraft <gray>| <gold>Random Teleport"
+  rtp-info: "<gray>Pick a world to teleport to a random spot."
+  rtpq-title: "<aqua>DiamondCraft <gray>| <gold>RTP Queue"
+  rtpq-info: "<gray>Teleport to a random spot together with another player. In queue: <white>{count}</white>/{need}"
+  rtpq-join-button: "<green>Join the queue"
+  rtpq-leave-button: "<red>Leave the queue"
+  status-title: "<aqua>DiamondCraft <gray>| <gold>Status"
+  status-lines:
+    - "<gray>Name: <white>{player}"
+    - "<gray>Money: <green>{money}"
+    - "<gray>Playtime: <yellow>{playtime}"
+    - "<gray>Homes: <white>{homes}"
 
-homes:
-  default-limit: 1
-  # Home limits per LuckPerms group. The player gets the HIGHEST one they match.
-  # Works by checking the permission "group.<name>" which LuckPerms gives players.
-  group-limits:
-    default: 1
-    vip: 3
-    vip+: 5
-    mvp: 8
-    admin: 50
-  # You can ALSO use permissions: smpcore.homes.<number> e.g. smpcore.homes.10
-  # and smpcore.homes.unlimited for no limit.
-  max-name-length: 16
-  # /home with no name opens the menu (false = teleports to "home" directly)
-  open-menu-on-home: true
+# ---------------------------------------------------------------- ESC MENU
+# Button in the Esc (pause) menu, Java 1.21.6+. Needs a server RESTART to change.
+# Every button runs a command for the player (no leading slash).
+# requires: economy  ->  button is hidden when economy.enabled is false.
+# /menu opens the same buttons for Bedrock players or NPCs.
+esc-menu:
+  enabled: true
+  title: "<aqua><bold>DiamondCraft"
+  body: "<gray>Homes, teleport, shop and more"
+  columns: 2
+  button-width: 150
+  buttons:
+    - {label: "Homes", command: "homes"}
+    - {label: "RTP", command: "rtp", requires: rtp}
+    # Auction runs another plugin's command. Change "ah" to your auction plugin's command
+    # or delete this line if you have no auction plugin.
+    - {label: "Auction", command: "ah"}
+    - {label: "RTP Queue", command: "rtpq", requires: rtpq}
+    # Shop and Sell use EconomyShopGUI (/shop and /sellgui). Premium: same commands.
+    - {label: "Shop", command: "shop", requires: economy}
+    - {label: "Friends", command: "tpfav"}
+    - {label: "Sell", command: "sellgui", requires: economy}
+    - {label: "Pay", command: "pay", requires: economy}
+    - {label: "Teleport", command: "tpmenu"}
+    - {label: "Status", command: "status"}
+    - {label: "Balance", command: "balance", requires: economy}
+    - {label: "Settings", command: "settings"}
 
-teleport:
-  delay: 3               # seconds standing still (0 = instant)
-  cancel-on-move: true
-
-tpa:
-  expire: 60             # seconds before a request runs out
-  cooldown: 10           # seconds between sending requests
-  incoming-menu: true    # pop up an Accept/Deny screen for the target
-
+# ---------------------------------------------------------------- PUNISHMENTS
 punishments:
   default-ban-reason: "No reason given"
   default-kick-reason: "No reason given"
@@ -61,9 +203,7 @@ punishments:
   permanent-text: "Permanent"
   date-format: "yyyy-MM-dd HH:mm z"
   broadcast: true
-  # Duration examples: 30m, 2h, 7d, 1w, 1d12h, perm
 
-# Screens shown to the player. Placeholders: {player} {reason} {staff} {duration} {expires}
 screens:
   ban:
     - "<red><bold>You are banned"
@@ -83,9 +223,11 @@ screens:
     - "<gray>You can rejoin in: <white>{duration}"
     - "<gray>Expires: <white>{expires}"
 
+# ---------------------------------------------------------------- MESSAGES
 messages:
   player-only: "<red>Only players can use this."
   player-not-found: "<red>Player not found."
+  player-unknown: "<red>Couldn't find that player. Bedrock players: include the prefix, e.g. .Name"
   bad-duration: "<red>Invalid duration. Use e.g. 30m, 2h, 7d, 1w."
   reloaded: "<green>Config reloaded."
   home-invalid-name: "<red>Home names: letters, numbers, - and _ only (max {max} chars)."
@@ -99,6 +241,9 @@ messages:
   tp-already: "<red>You are already teleporting."
   tp-done: "<green>Teleported to <yellow>{target}</yellow>."
   tpa-self: "<red>You can't teleport to yourself."
+  tpa-disabled: "<red>This command is disabled."
+  tpa-playtime: "<red>You need <white>{minutes}</white> more minutes of playtime to use this (required: {required} min)."
+  tpa-blocked: "<red>{player} is not accepting teleport requests."
   tpa-cooldown: "<red>Wait <white>{seconds}s</white> before sending another request."
   tpa-sent: "<green>Request sent to <yellow>{player}</yellow>."
   tpa-received: "<yellow>{player}</yellow> wants to teleport to you. <green><click:run_command:'/tpaccept {player}'>[Accept]</click> <red><click:run_command:'/tpdeny {player}'>[Deny]</click>"
@@ -110,6 +255,20 @@ messages:
   tpa-denied: "<yellow>Request denied."
   tpa-denied-sender: "<yellow>{player}</yellow> denied your request."
   tpa-cancelled: "<yellow>Your requests were cancelled."
+  economy-disabled: "<red>The economy is disabled."
+  balance-self: "<gray>Your balance: <green>{balance}"
+  balance-other: "<yellow>{player}</yellow><gray>'s balance: <green>{balance}"
+  pay-usage: "<red>/pay <player> <amount>"
+  pay-invalid: "<red>Invalid amount. Examples: 500, 2.5k, 1m"
+  pay-min: "<red>Minimum payment is {amount}."
+  pay-self: "<red>You can't pay yourself."
+  pay-no-money: "<red>You don't have enough money."
+  pay-sent: "<green>You paid <yellow>{player}</yellow> <green>{amount}."
+  pay-received: "<green>You received {amount} from <yellow>{player}</yellow>."
+  baltop-header: "<gold>Top balances"
+  baltop-line: "<gray>{rank}. <yellow>{player} <gray>- <green>{balance}"
+  eco-usage: "<red>/eco <give|take|set> <player> <amount>"
+  eco-done: "<green>{player}'s balance is now {balance}."
   usage-ban: "<red>/ban <player> [duration] [reason]"
   usage-unban: "<red>/unban <player>"
   usage-kick: "<red>/kick <player> [reason]"
@@ -125,19 +284,27 @@ messages:
   broadcast-ban: "<red>{player} was banned by {staff}. <gray>Reason: {reason} ({duration})"
   broadcast-kick: "<red>{player} was kicked by {staff}. <gray>Reason: {reason}"
   broadcast-timeout: "<gold>{player} was timed out by {staff} for {duration}. <gray>Reason: {reason}"
-  player-unknown: "<red>Couldn't find that player. Bedrock players: include the prefix, e.g. .Name"
-
-# Button in the Esc (pause) menu. Java 1.21.6+ only. Needs a server RESTART to change.
-# Buttons run the command for the player (no leading slash).
-esc-menu:
-  enabled: true
-  title: "<aqua><bold>DiamondCraft"
-  body: "<gray>Homes and teleport requests"
-  buttons:
-    - {label: "<yellow>Homes", command: "homes"}
-    - {label: "<green>Set home here", command: "sethome"}
-    - {label: "<aqua>Teleport to a player (TPA)", command: "tpa"}
-    - {label: "<aqua>Bring a player to me (TPA Here)", command: "tpahere"}
-    - {label: "<green>Accept request", command: "tpaccept"}
-    - {label: "<red>Deny request", command: "tpdeny"}
-    - {label: "<gray>Cancel my request", command: "tpacancel"}
+  fav-added: "<green>Added <yellow>{player}</yellow> to your favorites."
+  fav-removed: "<yellow>{player}</yellow> removed from your favorites."
+  fav-already: "<red>{player} is already in your favorites."
+  fav-not: "<red>{player} is not in your favorites."
+  fav-self: "<red>You can't add yourself."
+  fav-max: "<red>Your favorites list is full ({max})."
+  fav-usage: "<red>/tpfav [add|remove] <player>"
+  rtp-closed: "<red>Random teleport is closed."
+  rtp-world-closed: "<red>Random teleport is closed in that world."
+  rtp-no-world: "<red>That world is not available on this server."
+  rtp-cooldown: "<red>Wait <white>{seconds}s</white> before using random teleport again."
+  rtp-searching: "<red>Already searching for a spot..."
+  rtp-finding: "<gray>Searching for a safe spot..."
+  rtp-fail: "<red>Couldn't find a safe spot. Try again."
+  rtp-no-money: "<red>You need {amount} for this."
+  rtpq-closed: "<red>The RTP queue is closed."
+  rtpq-already: "<red>You are already in the queue."
+  rtpq-joined: "<green>You joined the RTP queue."
+  rtpq-left: "<yellow>You left the RTP queue."
+  rtpq-not-queued: "<red>You are not in the queue."
+  rtpq-searching: "<gray>Searching for other players... <white>{count}</white>/{need}"
+  rtpq-found: "<green>Match found! Teleporting in <white>{seconds}s</white>..."
+  rtpq-done: "<green>You were teleported with the other players!"
+  rtpq-usage: "<red>/rtpq [join|leave]"

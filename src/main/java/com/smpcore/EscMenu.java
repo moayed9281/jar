@@ -47,17 +47,24 @@ final class EscMenu {
         Component body = mm.deserialize(cfg.getString("esc-menu.body", "<gray>Homes and teleport requests"));
         Key key = Key.key("diamondcraft", "menu");
 
+        boolean econ = cfg.getBoolean("economy.enabled", true);
+        boolean rtp = cfg.getBoolean("rtp.enabled", true);
+        boolean rtpq = rtp && cfg.getBoolean("rtp.queue.enabled", true);
+        int columns = Math.max(1, cfg.getInt("esc-menu.columns", 2));
+        int width = Math.max(50, Math.min(400, cfg.getInt("esc-menu.button-width", 150)));
         List<ActionButton> buttons = new ArrayList<>();
         for (Map<?, ?> m : cfg.getMapList("esc-menu.buttons")) {
             Object label = m.get("label");
             Object command = m.get("command");
             if (label == null || command == null) continue;
-            buttons.add(ActionButton.create(mm.deserialize(String.valueOf(label)), null, 200,
+            String req = String.valueOf(m.get("requires"));
+            if ((req.equals("economy") && !econ) || (req.equals("rtp") && !rtp) || (req.equals("rtpq") && !rtpq)) continue;
+            buttons.add(ActionButton.create(mm.deserialize(String.valueOf(label)), null, width,
                     DialogAction.staticAction(ClickEvent.runCommand(String.valueOf(command)))));
         }
         if (buttons.isEmpty()) return;
         ActionButton close = ActionButton.create(
-                mm.deserialize(cfg.getString("menus.close-button", "<gray>Close")), null, 200, null);
+                mm.deserialize(cfg.getString("menus.close-button", "<gray>Close")), null, width * columns, null);
 
         ctx.getLifecycleManager().registerEventHandler(RegistryEvents.DIALOG.compose().newHandler(event -> {
             try {
@@ -67,7 +74,7 @@ final class EscMenu {
                                 .canCloseWithEscape(true)
                                 .body(List.of(DialogBody.plainMessage(body)))
                                 .build())
-                        .type(DialogType.multiAction(buttons, close, 1)));
+                        .type(DialogType.multiAction(buttons, close, columns)));
             } catch (Throwable t) {
                 ctx.getLogger().warn("Esc menu dialog could not be registered: " + t);
             }

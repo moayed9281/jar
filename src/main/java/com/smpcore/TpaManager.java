@@ -1,6 +1,7 @@
 package com.smpcore;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Statistic;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -16,14 +17,45 @@ public final class TpaManager {
     private final Map<UUID, LinkedHashMap<UUID, Req>> pending = new HashMap<>();
     private final Map<UUID, Long> cooldown = new HashMap<>();
 
+    private static final Statistic PLAYTIME = findPlaytime();
+
+    private static Statistic findPlaytime() {
+        try {
+            return Statistic.valueOf("PLAY_TIME");
+        } catch (IllegalArgumentException e) {
+            return Statistic.valueOf("PLAY_ONE_MINUTE");
+        }
+    }
+
     public TpaManager(SMPCore plugin) {
         this.plugin = plugin;
+    }
+
+    public static long playMinutes(Player p) {
+        return p.getStatistic(PLAYTIME) / 20L / 60L;
     }
 
     public void request(Player from, Player to, boolean here) {
         Msg m = plugin.msg;
         if (from.getUniqueId().equals(to.getUniqueId())) {
             m.send(from, "tpa-self");
+            return;
+        }
+        var cfg = plugin.getConfig();
+        if (!cfg.getBoolean(here ? "tpa.tpahere-enabled" : "tpa.tpa-enabled", true)) {
+            m.send(from, "tpa-disabled");
+            return;
+        }
+        long need = cfg.getLong(here ? "tpa.tpahere-min-playtime-minutes" : "tpa.tpa-min-playtime-minutes", 0);
+        if (need > 0 && !from.hasPermission("smpcore.bypass.playtime")) {
+            long have = playMinutes(from);
+            if (have < need) {
+                m.send(from, "tpa-playtime", "minutes", String.valueOf(need - have), "required", String.valueOf(need));
+                return;
+            }
+        }
+        if (!plugin.settings.acceptsTpa(to.getUniqueId()) && !from.hasPermission("smpcore.bypass.tpablock")) {
+            m.send(from, "tpa-blocked", "player", to.getName());
             return;
         }
         long now = System.currentTimeMillis();

@@ -14,3 +14,17 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
+    Vault:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    EconomyShopGUI-Premium:
+      load: AFTER
+      required: false
+    EconomyShopGUI:
+      load: AFTER
+      required: false
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
+      join-classpath: true

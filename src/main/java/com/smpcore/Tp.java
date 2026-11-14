@@ -20,9 +20,13 @@ public final class Tp {
 
     /** Teleports after the configured delay. dest is evaluated when the teleport happens. */
     public void go(Player p, Supplier<Location> dest, String targetName) {
+        go(p, dest, targetName, null);
+    }
+
+    public void go(Player p, Supplier<Location> dest, String targetName, Runnable onDone) {
         int delay = plugin.getConfig().getInt("teleport.delay", 3);
         if (delay <= 0 || p.hasPermission("smpcore.bypass.delay")) {
-            finish(p, dest, targetName);
+            finish(p, dest, targetName, onDone);
             return;
         }
         if (!active.add(p.getUniqueId())) {
@@ -53,13 +57,13 @@ public final class Tp {
                 if (ticks >= delay * 20) {
                     active.remove(p.getUniqueId());
                     cancel();
-                    finish(p, dest, targetName);
+                    finish(p, dest, targetName, onDone);
                 }
             }
         }.runTaskTimer(plugin, 5L, 5L);
     }
 
-    private void finish(Player p, Supplier<Location> dest, String targetName) {
+    private void finish(Player p, Supplier<Location> dest, String targetName, Runnable onDone) {
         Location l = dest.get();
         if (l == null) {
             plugin.msg.send(p, "tpa-offline");
@@ -67,5 +71,6 @@ public final class Tp {
         }
         p.teleportAsync(l);
         plugin.msg.send(p, "tp-done", "target", targetName);
+        if (onDone != null) onDone.run();
     }
 }

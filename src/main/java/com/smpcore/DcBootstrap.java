@@ -8,6 +8,12 @@ public final class DcBootstrap implements PluginBootstrap {
     @Override
     public void bootstrap(BootstrapContext context) {
         try {
+            ConfigUpdater.update(context.getDataDirectory().toFile(),
+                    DcBootstrap.class.getResourceAsStream("/config.yml"), msg -> context.getLogger().info(msg));
+        } catch (Throwable t) {
+            context.getLogger().warn("Config update failed: " + t);
+        }
+        try {
             Class.forName("io.papermc.paper.registry.data.dialog.DialogBase", false, DcBootstrap.class.getClassLoader());
             EscMenu.register(context);
         } catch (Throwable t) {
