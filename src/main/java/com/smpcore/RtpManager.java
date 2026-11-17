@@ -104,6 +104,10 @@ public final class RtpManager {
             m.send(p, "rtp-no-money", "amount", plugin.economy.format(price));
             return;
         }
+        if (searching.size() >= Math.max(1, plugin.getConfig().getInt("rtp.max-concurrent", 4))) {
+            m.send(p, "rtp-busy");
+            return;
+        }
         if (!searching.add(p.getUniqueId())) {
             m.send(p, "rtp-searching");
             return;
@@ -117,10 +121,13 @@ public final class RtpManager {
                 m.send(p, "rtp-fail");
                 return;
             }
-            plugin.tp.go(p, () -> loc, name, () -> {
-                cooldown.put(p.getUniqueId(), System.currentTimeMillis());
-                if (charge) plugin.economy.withdraw(p.getUniqueId(), price);
-            });
+            if (charge && !plugin.economy.withdraw(p.getUniqueId(), price)) {
+                m.send(p, "rtp-no-money", "amount", plugin.economy.format(price));
+                return;
+            }
+            plugin.tp.go(p, () -> loc, name,
+                    () -> cooldown.put(p.getUniqueId(), System.currentTimeMillis()),
+                    charge ? () -> plugin.economy.deposit(p.getUniqueId(), price) : null);
         });
     }
 
@@ -197,6 +204,7 @@ public final class RtpManager {
 
     private void runMatch() {
         matching = false;
+        queue.removeIf(id -> Bukkit.getPlayer(id) == null);
         List<Player> group = new ArrayList<>();
         for (UUID id : queue) {
             Player q = Bukkit.getPlayer(id);

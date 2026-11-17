@@ -42,10 +42,30 @@ public final class Players {
         Resolved old = byName.put(name.toLowerCase(), new Resolved(id, name));
         if (old == null || !old.id().equals(id) || !old.name().equals(name)) {
             Bukkit.getScheduler().runTaskAsynchronously(plugin, this::save);
+            if (plugin.net != null) plugin.net.put("name", name.toLowerCase(), nameJson(id, name));
         }
     }
 
-    private synchronized void save() {
+    private static String nameJson(UUID id, String name) {
+        com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+        o.addProperty("i", id.toString());
+        o.addProperty("n", name);
+        return o.toString();
+    }
+
+    public void applyRemote(String key, String value, boolean deleted) {
+        if (deleted || value == null) return;
+        com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(value).getAsJsonObject();
+        byName.put(key, new Resolved(UUID.fromString(o.get("i").getAsString()), o.get("n").getAsString()));
+    }
+
+    public void exportLocal() {
+        for (Map.Entry<String, Resolved> e : byName.entrySet()) {
+            plugin.net.putIfAbsent("name", e.getKey(), nameJson(e.getValue().id(), e.getValue().name()));
+        }
+    }
+
+    synchronized void save() {
         YamlConfiguration yml = new YamlConfiguration();
         for (Map.Entry<String, Resolved> e : byName.entrySet()) {
             yml.set("players." + e.getKey() + ".uuid", e.getValue().id().toString());
@@ -76,6 +96,22 @@ public final class Players {
         if (on != null) return on.getName();
         for (Resolved r : byName.values()) if (r.id().equals(id)) return r.name();
         return id.toString().substring(0, 8);
+    }
+
+    /** Like resolve, but only online or already-known names. Never calls Mojang (safe for normal players' commands). */
+    public void resolveKnown(String input, Consumer<Resolved> cb) {
+        Player on = Bukkit.getPlayerExact(input);
+        if (on != null) {
+            cb.accept(new Resolved(on.getUniqueId(), on.getName()));
+            return;
+        }
+        Resolved cached = byName.get(input.toLowerCase());
+        FloodgateHook fg = plugin.floodgate;
+        String prefix = fg == null ? "" : fg.prefix();
+        if (cached == null && !prefix.isEmpty() && !input.startsWith(prefix)) {
+            cached = byName.get((prefix + input).toLowerCase());
+        }
+        cb.accept(cached);
     }
 
     /** Calls cb on the main thread; null means the player could not be found. */

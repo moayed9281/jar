@@ -36,7 +36,8 @@ public final class SettingsManager {
         }
     }
 
-    private synchronized void save() {
+    synchronized void save() {
+        if (plugin.net != null) return;
         YamlConfiguration yml = new YamlConfiguration();
         yml.set("night-vision", nightVision.stream().map(UUID::toString).toList());
         yml.set("no-tpa", noTpa.stream().map(UUID::toString).toList());
@@ -57,14 +58,14 @@ public final class SettingsManager {
 
     public void toggleTpa(UUID id) {
         if (!noTpa.remove(id)) noTpa.add(id);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, this::save);
+        persist(id);
     }
 
     public void toggleNightVision(Player p) {
         if (!nightVision.remove(p.getUniqueId())) nightVision.add(p.getUniqueId());
         if (nightVision.contains(p.getUniqueId())) applyNightVision(p);
         else p.removePotionEffect(PotionEffectType.NIGHT_VISION);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, this::save);
+        persist(p.getUniqueId());
     }
 
     /** Adds the effect if the player turned it on (used on join, respawn and toggle). */
@@ -74,5 +75,39 @@ public final class SettingsManager {
             p.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION,
                     0, false, false, false));
         }
+    }
+
+    private String json(UUID id) {
+        com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+        o.addProperty("nv", nightVision.contains(id));
+        o.addProperty("nt", noTpa.contains(id));
+        return o.toString();
+    }
+
+    private void persist(UUID id) {
+        if (plugin.net != null) plugin.net.put("set", id.toString(), json(id));
+        else Bukkit.getScheduler().runTaskAsynchronously(plugin, this::save);
+    }
+
+    public void applyRemote(String key, String value, boolean deleted) {
+        if (deleted || value == null) return;
+        UUID id = UUID.fromString(key);
+        com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(value).getAsJsonObject();
+        boolean nv = o.get("nv").getAsBoolean();
+        if (nv) nightVision.add(id);
+        else nightVision.remove(id);
+        if (o.get("nt").getAsBoolean()) noTpa.add(id);
+        else noTpa.remove(id);
+        Player p = Bukkit.getPlayer(id);
+        if (p != null) {
+            if (nv) applyNightVision(p);
+            else p.removePotionEffect(PotionEffectType.NIGHT_VISION);
+        }
+    }
+
+    public void exportLocal() {
+        java.util.Set<UUID> all = new java.util.HashSet<>(nightVision);
+        all.addAll(noTpa);
+        for (UUID id : all) plugin.net.putIfAbsent("set", id.toString(), json(id));
     }
 }

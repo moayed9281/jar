@@ -73,6 +73,11 @@ final class PapiHook extends PlaceholderExpansion {
                 case "favorites" -> String.valueOf(plugin.favorites.list(id).size());
                 case "favorites_online" -> String.valueOf(plugin.favorites.list(id).stream()
                         .filter(f -> Bukkit.getPlayer(f) != null).count());
+                case "discord" -> {
+                    DiscordLink.Link l = plugin.discord.get(id);
+                    yield l == null ? "Not linked" : l.discordName();
+                }
+                case "linked" -> plugin.discord.get(id) != null ? "Yes" : "No";
                 case "nightvision" -> plugin.settings.nightVision(id) ? "On" : "Off";
                 case "tpa_requests" -> plugin.settings.acceptsTpa(id) ? "On" : "Off";
                 default -> null;

@@ -27,14 +27,15 @@ public final class Gui {
     public void openHomes(Player p) {
         Msg m = plugin.msg;
         UUID id = p.getUniqueId();
-        Map<String, Location> homes = plugin.homes.all(id);
+        Map<String, HomeManager.Home> homes = plugin.homes.all(id);
         int limit = plugin.homes.limit(p);
         List<Menus.Entry> entries = new ArrayList<>();
-        for (Map.Entry<String, Location> en : homes.entrySet()) {
+        for (Map.Entry<String, HomeManager.Home> en : homes.entrySet()) {
             String name = en.getKey();
-            Location l = en.getValue();
-            Component tip = m.mm("<gray>" + l.getWorld().getName() + " " + l.getBlockX() + ", "
-                    + l.getBlockY() + ", " + l.getBlockZ());
+            HomeManager.Home h = en.getValue();
+            String where = h.world() + " " + (int) h.x() + ", " + (int) h.y() + ", " + (int) h.z();
+            if (!h.server().equalsIgnoreCase(plugin.serverName())) where += " (" + h.server() + ")";
+            Component tip = m.mm("<gray>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(where));
             entries.add(new Menus.Entry(m.text("menus.home-button", "home", name), tip, Material.RED_BED,
                     () -> openHome(p, name)));
         }
@@ -57,9 +58,8 @@ public final class Gui {
         Msg m = plugin.msg;
         UUID id = p.getUniqueId();
         List<Menus.Entry> entries = new ArrayList<>();
-        entries.add(new Menus.Entry(m.text("menus.teleport-button"), null, Material.ENDER_PEARL, () -> {
-            plugin.tp.go(p, () -> plugin.homes.get(id, name), name);
-        }));
+        entries.add(new Menus.Entry(m.text("menus.teleport-button"), null, Material.ENDER_PEARL,
+                () -> teleportHome(p, name)));
         entries.add(new Menus.Entry(m.text("menus.delete-button"), null, Material.BARRIER, () -> {
             plugin.homes.delete(id, name);
             m.send(p, "home-deleted", "home", name);
@@ -69,18 +69,50 @@ public final class Gui {
                 back(() -> openHomes(p)));
     }
 
+    /** Teleport to a home, also when it is on another server of the network. */
+    public void teleportHome(Player p, String name) {
+        UUID id = p.getUniqueId();
+        HomeManager.Home h = plugin.homes.get(id, name);
+        if (h == null) {
+            plugin.msg.send(p, "home-not-found", "home", name.toLowerCase());
+            return;
+        }
+        if (h.server().equalsIgnoreCase(plugin.serverName())) {
+            plugin.tp.go(p, () -> {
+                HomeManager.Home x = plugin.homes.get(id, name);
+                return x == null ? null : x.toLocation();
+            }, name);
+        } else if (plugin.net != null) {
+            plugin.tp.countdown(p, () -> plugin.net.sendToHome(p, h));
+        } else {
+            plugin.msg.send(p, "home-other-server", "server", h.server());
+        }
+    }
+
     public void openTpa(Player p, boolean here) {
         Msg m = plugin.msg;
+        UUID me = p.getUniqueId();
         List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
-        online.removeIf(o -> o.getUniqueId().equals(p.getUniqueId()));
-        online.sort(Comparator.comparing((Player o) -> !plugin.favorites.has(p.getUniqueId(), o.getUniqueId()))
+        online.removeIf(o -> o.getUniqueId().equals(me));
+        online.sort(Comparator.comparing((Player o) -> !plugin.favorites.has(me, o.getUniqueId()))
                 .thenComparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
         List<Menus.Entry> entries = new ArrayList<>();
         for (Player other : online) {
-            boolean fav = plugin.favorites.has(p.getUniqueId(), other.getUniqueId());
-            Component label = m.mm((fav ? "<gold>★ <yellow>" : "<yellow>") + other.getName());
+            boolean fav = plugin.favorites.has(me, other.getUniqueId());
+            Component label = m.mm((fav ? "<gold>\u2605 <yellow>" : "<yellow>") + other.getName());
             entries.add(new Menus.Entry(label, null, Material.PLAYER_HEAD,
                     () -> plugin.tpa.request(p, other, here)));
+        }
+        if (plugin.net != null) {
+            List<Net.OnlineInfo> remote = new ArrayList<>(plugin.net.remotePlayers());
+            remote.sort(Comparator.comparing((Net.OnlineInfo o) -> !plugin.favorites.has(me, o.id()))
+                    .thenComparing(Net.OnlineInfo::name, String.CASE_INSENSITIVE_ORDER));
+            for (Net.OnlineInfo o : remote) {
+                boolean fav = plugin.favorites.has(me, o.id());
+                Component label = m.mm((fav ? "<gold>\u2605 <yellow>" : "<yellow>") + o.name() + " <gray>(" + o.server() + ")");
+                entries.add(new Menus.Entry(label, null, Material.PLAYER_HEAD,
+                        () -> plugin.tpa.requestRemote(p, o, here)));
+            }
         }
         Component msg = entries.isEmpty() ? m.text("menus.tpa-no-players") : m.text("menus.tpa-info");
         plugin.menus.open(p, m.text(here ? "menus.tpahere-title" : "menus.tpa-title"), msg, entries,
@@ -111,7 +143,7 @@ public final class Gui {
         List<Menus.Entry> es = new ArrayList<>();
         for (UUID id : favs) {
             String name = plugin.players.nameFor(id);
-            boolean on = Bukkit.getPlayer(id) != null;
+            boolean on = onlineAnywhere(id);
             Component label = on ? m.mm("<gold>★ <green>" + name) : m.mm("<gray>★ " + name + " (offline)");
             es.add(new Menus.Entry(label, null, Material.PLAYER_HEAD, () -> openFavoriteActions(p, id, name)));
         }
@@ -120,19 +152,28 @@ public final class Gui {
                 m.text(favs.isEmpty() ? "menus.fav-empty" : "menus.fav-info"), es, back(() -> openTeleportMenu(p)));
     }
 
+    private boolean onlineAnywhere(UUID id) {
+        return Bukkit.getPlayer(id) != null || (plugin.net != null && plugin.net.remoteById(id) != null);
+    }
+
     private void quick(Player p, UUID id, boolean here) {
         Player t = Bukkit.getPlayer(id);
-        if (t == null) {
-            plugin.msg.send(p, "tpa-offline");
+        if (t != null) {
+            plugin.tpa.request(p, t, here);
             return;
         }
-        plugin.tpa.request(p, t, here);
+        Net.OnlineInfo ri = plugin.net == null ? null : plugin.net.remoteById(id);
+        if (ri != null) {
+            plugin.tpa.requestRemote(p, ri, here);
+            return;
+        }
+        plugin.msg.send(p, "tpa-offline");
     }
 
     public void openFavoriteActions(Player p, UUID id, String name) {
         Msg m = plugin.msg;
         List<Menus.Entry> es = new ArrayList<>();
-        if (Bukkit.getPlayer(id) != null) {
+        if (onlineAnywhere(id)) {
             if (plugin.getConfig().getBoolean("tpa.tpa-enabled", true)) {
                 es.add(new Menus.Entry(m.text("menus.fav-tpa-button"), null, Material.ENDER_PEARL,
                         () -> quick(p, id, false)));
@@ -195,15 +236,15 @@ public final class Gui {
         plugin.menus.open(p, m.text("menus.status-title"), m.mm(String.join("\n", lines)), List.of(), null);
     }
 
-    public void openIncoming(Player target, Player from, boolean here) {
+    public void openIncoming(Player target, String fromName, boolean here) {
         Msg m = plugin.msg;
         List<Menus.Entry> entries = new ArrayList<>();
         entries.add(new Menus.Entry(m.text("menus.accept-button"), null, Material.LIME_CONCRETE,
-                () -> plugin.tpa.accept(target, from.getName())));
+                () -> plugin.tpa.accept(target, fromName)));
         entries.add(new Menus.Entry(m.text("menus.deny-button"), null, Material.RED_CONCRETE,
-                () -> plugin.tpa.deny(target, from.getName())));
+                () -> plugin.tpa.deny(target, fromName)));
         plugin.menus.open(target, m.text("menus.incoming-title"),
-                m.text(here ? "menus.incoming-here" : "menus.incoming-to-you", "player", from.getName()),
+                m.text(here ? "menus.incoming-here" : "menus.incoming-to-you", "player", fromName),
                 entries, null);
     }
 

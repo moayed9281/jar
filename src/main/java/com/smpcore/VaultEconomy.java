@@ -25,7 +25,10 @@ public final class VaultEconomy implements Economy {
     }
 
     private EconomyResponse withdraw(UUID id, double amt) {
-        if (amt < 0) return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.FAILURE, "Negative amount");
+        if (Double.isNaN(amt) || Double.isInfinite(amt) || amt < 0) {
+            return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.FAILURE, "Invalid amount");
+        }
+        if (amt == 0) return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.SUCCESS, null);
         if (!em().withdraw(id, amt)) {
             return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.FAILURE, "Insufficient funds");
         }
@@ -33,7 +36,9 @@ public final class VaultEconomy implements Economy {
     }
 
     private EconomyResponse deposit(UUID id, double amt) {
-        if (amt < 0) return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.FAILURE, "Negative amount");
+        if (Double.isNaN(amt) || Double.isInfinite(amt) || amt < 0) {
+            return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.FAILURE, "Invalid amount");
+        }
         em().deposit(id, amt);
         return new EconomyResponse(amt, em().get(id), EconomyResponse.ResponseType.SUCCESS, null);
     }

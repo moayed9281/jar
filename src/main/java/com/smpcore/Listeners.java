@@ -1,6 +1,7 @@
 package com.smpcore;
 
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.Bukkit;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
@@ -15,15 +16,19 @@ public final class Listeners implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreLogin(AsyncPlayerPreLoginEvent e) {
         plugin.players.record(e.getName(), e.getUniqueId());
-        PunishManager.Rec ban = plugin.punish.get(e.getUniqueId(), PunishManager.Type.BAN);
+        if (plugin.net != null) {
+            plugin.economy.loadBlocking(e.getUniqueId());
+            plugin.punish.refresh(e.getUniqueId());
+        }
+        PunishManager.Rec ban = plugin.punish.find(e.getUniqueId(), e.getName(), PunishManager.Type.BAN);
         if (ban != null) {
             e.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, plugin.msg.screen("ban", ban));
             return;
         }
-        PunishManager.Rec to = plugin.punish.get(e.getUniqueId(), PunishManager.Type.TIMEOUT);
+        PunishManager.Rec to = plugin.punish.find(e.getUniqueId(), e.getName(), PunishManager.Type.TIMEOUT);
         if (to != null) {
             e.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, plugin.msg.screen("timeout", to));
         }
@@ -33,6 +38,8 @@ public final class Listeners implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         plugin.economy.ensure(e.getPlayer().getUniqueId());
         plugin.settings.applyNightVision(e.getPlayer());
+        plugin.discord.onJoin(e.getPlayer());
+        if (plugin.net != null) plugin.net.onJoin(e.getPlayer());
     }
 
     @EventHandler

@@ -49,14 +49,14 @@ public final class FavoritesManager {
         if (set.contains(other)) return 1;
         if (set.size() >= max) return 2;
         set.add(other);
-        saveLater();
+        persist(owner);
         return 0;
     }
 
     public synchronized boolean remove(UUID owner, UUID other) {
         LinkedHashSet<UUID> set = map.get(owner);
         boolean removed = set != null && set.remove(other);
-        if (removed) saveLater();
+        if (removed) persist(owner);
         return removed;
     }
 
@@ -64,7 +64,8 @@ public final class FavoritesManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, this::save);
     }
 
-    private synchronized void save() {
+    synchronized void save() {
+        if (plugin.net != null) return;
         YamlConfiguration yml = new YamlConfiguration();
         for (Map.Entry<UUID, LinkedHashSet<UUID>> e : map.entrySet()) {
             yml.set("favorites." + e.getKey(), e.getValue().stream().map(UUID::toString).toList());
@@ -74,5 +75,33 @@ public final class FavoritesManager {
         } catch (IOException ex) {
             plugin.getLogger().severe("Could not save favorites.yml: " + ex.getMessage());
         }
+    }
+
+    private String json(UUID owner) {
+        com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+        for (UUID u : map.getOrDefault(owner, new LinkedHashSet<>())) a.add(u.toString());
+        return a.toString();
+    }
+
+    private void persist(UUID owner) {
+        if (plugin.net != null) plugin.net.put("fav", owner.toString(), json(owner));
+        else saveLater();
+    }
+
+    public synchronized void applyRemote(String key, String value, boolean deleted) {
+        UUID owner = UUID.fromString(key);
+        if (deleted || value == null) {
+            map.remove(owner);
+            return;
+        }
+        LinkedHashSet<UUID> set = new LinkedHashSet<>();
+        for (com.google.gson.JsonElement e : com.google.gson.JsonParser.parseString(value).getAsJsonArray()) {
+            set.add(UUID.fromString(e.getAsString()));
+        }
+        map.put(owner, set);
+    }
+
+    public synchronized void exportLocal() {
+        for (UUID owner : map.keySet()) plugin.net.putIfAbsent("fav", owner.toString(), json(owner));
     }
 }

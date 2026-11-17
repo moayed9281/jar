@@ -20,12 +20,26 @@ public final class SMPCore extends JavaPlugin {
     public SettingsManager settings;
     public FavoritesManager favorites;
     public RtpManager rtp;
+    public HistoryManager history;
+    public Punisher punisher;
+    public StaffGui staffGui;
+    public DiscordLink discord;
+    public Net net;
     private Object vaultProvider;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         ConfigUpdater.update(getDataFolder(), getResource("config.yml"), msg -> getLogger().info(msg));
+        if (getConfig().getBoolean("network.enabled", false)) {
+            try {
+                net = new Net(this);
+            } catch (Throwable t) {
+                getLogger().severe("NETWORK MODE FAILED (database): " + t.getMessage()
+                        + " - running with local files only!");
+                net = null;
+            }
+        }
         msg = new Msg(this);
         homes = new HomeManager(this);
         tpa = new TpaManager(this);
@@ -36,6 +50,19 @@ public final class SMPCore extends JavaPlugin {
         favorites = new FavoritesManager(this);
         rtp = new RtpManager(this);
         punish = new PunishManager(this);
+        history = new HistoryManager(this);
+        punisher = new Punisher(this);
+        staffGui = new StaffGui(this);
+        discord = new DiscordLink(this);
+        if (net != null) {
+            try {
+                net.start();
+            } catch (Throwable t) {
+                getLogger().severe("NETWORK MODE FAILED to start: " + t.getMessage() + " - running with local files only!");
+                net.shutdown();
+                net = null;
+            }
+        }
         tp = new Tp(this);
         menus = createMenus();
         gui = new Gui(this);
@@ -65,6 +92,9 @@ public final class SMPCore extends JavaPlugin {
         cmd(cmds, "status", "smpcore.status", "stats");
         cmd(cmds, "tpmenu", "smpcore.tpa");
         cmd(cmds, "tpfav", "smpcore.tpa", "friends", "fav");
+        cmd(cmds, "punish", "smpcore.staff", "staff", "bans");
+        cmd(cmds, "link", "smpcore.link");
+        cmd(cmds, "unlink", "smpcore.link");
         cmd(cmds, "rtp", "smpcore.rtp");
         cmd(cmds, "rtpq", "smpcore.rtpq", "rtpqueue");
         cmd(cmds, "smpcore", "smpcore.reload", "diamondcraft");
@@ -73,6 +103,7 @@ public final class SMPCore extends JavaPlugin {
         applyEconomy();
         getServer().getScheduler().runTaskTimer(this,
                 () -> getServer().getOnlinePlayers().forEach(homes::limit), 20L, 600L);
+        discord.start();
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             try {
                 new PapiHook(this).register();
@@ -85,7 +116,21 @@ public final class SMPCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (net == null) {
+            // local files: write everything now so the last changes before a stop are never lost
+            if (homes != null) homes.saveNow();
+            if (favorites != null) favorites.save();
+            if (settings != null) settings.save();
+            if (history != null) history.save();
+            if (punish != null) punish.save();
+            if (players != null) players.save();
+        }
+        if (discord != null) {
+            discord.save();
+            discord.stop();
+        }
         if (economy != null) economy.save();
+        if (net != null) net.shutdown();
     }
 
     /** Used by menu buttons: requires: economy | rtp | rtpq */
@@ -135,6 +180,7 @@ public final class SMPCore extends JavaPlugin {
                 {"smpcore.economy", PermissionDefault.TRUE}, {"smpcore.eco", PermissionDefault.OP},
                 {"smpcore.settings", PermissionDefault.TRUE}, {"smpcore.settings.nightvision", PermissionDefault.TRUE},
                 {"smpcore.menu", PermissionDefault.TRUE}, {"smpcore.status", PermissionDefault.TRUE},
+                {"smpcore.staff", PermissionDefault.OP}, {"smpcore.punish.override", PermissionDefault.OP}, {"smpcore.link", PermissionDefault.TRUE}, {"smpcore.punish.exempt", PermissionDefault.FALSE},
                 {"smpcore.rtp", PermissionDefault.TRUE}, {"smpcore.rtpq", PermissionDefault.TRUE}, {"smpcore.homes.unlimited", PermissionDefault.FALSE}
         };
         for (Object[] x : perms) {
@@ -182,9 +228,15 @@ public final class SMPCore extends JavaPlugin {
         return new MenuRouter(java, bedrock);
     }
 
+    /** The name of THIS server in the Velocity proxy (network.server-name). */
+    public String serverName() {
+        return getConfig().getString("network.server-name", "main");
+    }
+
     public void reload() {
         reloadConfig();
         homes.load();
         applyEconomy();
+        discord.restart();
     }
 }

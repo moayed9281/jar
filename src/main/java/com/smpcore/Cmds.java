@@ -41,10 +41,14 @@ public final class Cmds implements TabExecutor {
     private Player online(String name) {
         Player exact = Bukkit.getPlayerExact(name);
         if (exact != null) return exact;
+        Player found = null;
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (strip(p.getName()).equalsIgnoreCase(strip(name))) return p;
+            if (strip(p.getName()).equalsIgnoreCase(strip(name))) {
+                if (found != null) return null; // two players match: do not guess
+                found = p;
+            }
         }
-        return null;
+        return found;
     }
 
     private boolean econOn(CommandSender s) {
@@ -65,7 +69,7 @@ public final class Cmds implements TabExecutor {
             else if (t.endsWith("b")) mult = 1e9;
             if (mult != 1) t = t.substring(0, t.length() - 1);
             double v = Double.parseDouble(t) * mult;
-            return Double.isNaN(v) || Double.isInfinite(v) || v < 0 ? -1 : v;
+            return Double.isNaN(v) || Double.isInfinite(v) || v < 0 || v > 1e12 ? -1 : v;
         } catch (NumberFormatException e) {
             return -1;
         }
@@ -96,7 +100,7 @@ public final class Cmds implements TabExecutor {
                     msg.send(p, "home-invalid-name", "max", String.valueOf(max));
                     return true;
                 }
-                Map<String, Location> h = plugin.homes.all(p.getUniqueId());
+                Map<String, HomeManager.Home> h = plugin.homes.all(p.getUniqueId());
                 int limit = plugin.homes.limit(p);
                 if (!h.containsKey(name) && h.size() >= limit) {
                     msg.send(p, "home-limit", "limit", plugin.homes.limitText(p));
@@ -108,7 +112,7 @@ public final class Cmds implements TabExecutor {
             case "home" -> {
                 Player p = player(s);
                 if (p == null) return true;
-                Map<String, Location> h = plugin.homes.all(p.getUniqueId());
+                Map<String, HomeManager.Home> h = plugin.homes.all(p.getUniqueId());
                 if (a.length == 0) {
                     if (h.isEmpty()) {
                         msg.send(p, "home-none");
@@ -116,7 +120,7 @@ public final class Cmds implements TabExecutor {
                         plugin.gui.openHomes(p);
                     } else {
                         String first = h.containsKey("home") ? "home" : h.keySet().iterator().next();
-                        plugin.tp.go(p, () -> plugin.homes.get(p.getUniqueId(), first), first);
+                        plugin.gui.teleportHome(p, first);
                     }
                     return true;
                 }
@@ -125,7 +129,7 @@ public final class Cmds implements TabExecutor {
                     msg.send(p, "home-not-found", "home", name);
                     return true;
                 }
-                plugin.tp.go(p, () -> plugin.homes.get(p.getUniqueId(), name), name);
+                plugin.gui.teleportHome(p, name);
             }
             case "homes" -> {
                 Player p = player(s);
@@ -152,6 +156,11 @@ public final class Cmds implements TabExecutor {
                 }
                 Player t = online(a[0]);
                 if (t == null) {
+                    Net.OnlineInfo ri = plugin.net == null ? null : plugin.net.findRemote(a[0]);
+                    if (ri != null) {
+                        plugin.tpa.requestRemote(p, ri, here);
+                        return true;
+                    }
                     msg.send(p, "player-not-found");
                     return true;
                 }
@@ -170,34 +179,25 @@ public final class Cmds implements TabExecutor {
                 if (p != null) plugin.tpa.cancel(p);
             }
             case "ban" -> {
-                if (a.length < 1) {
+                if (a.length < 2) {
                     msg.send(s, "usage-ban");
                     return true;
                 }
                 long dur = 0;
                 int ri = 1;
-                if (a.length > 1) {
-                    long d = Dur.parse(a[1]);
-                    if (d >= 0) {
-                        dur = d;
-                        ri = 2;
-                    }
+                long d = Dur.parse(a[1]);
+                if (d >= 0) {
+                    dur = d;
+                    ri = 2;
                 }
                 final long fdur = dur;
-                final String why = reason(a, ri, plugin.getConfig().getString("punishments.default-ban-reason", ""));
+                final String why = reason(a, ri, "");
                 plugin.players.resolve(a[0], t -> {
                     if (t == null) {
                         msg.send(s, "player-unknown");
                         return;
                     }
-                    long until = fdur == 0 ? 0 : System.currentTimeMillis() + fdur;
-                    PunishManager.Rec r = new PunishManager.Rec(PunishManager.Type.BAN, t.id(), t.name(),
-                            until, why, s.getName());
-                    plugin.punish.add(r);
-                    Player on = Bukkit.getPlayer(t.id());
-                    if (on != null) on.kick(msg.screen("ban", r));
-                    msg.send(s, "done-ban", "player", r.name(), "duration", until == 0 ? perm() : Dur.format(fdur));
-                    broadcast("broadcast-ban", r);
+                    plugin.punisher.punish(s, PunishManager.Type.BAN, t.id(), t.name(), fdur, why);
                 });
             }
             case "unban" -> {
@@ -205,18 +205,10 @@ public final class Cmds implements TabExecutor {
                     msg.send(s, "usage-unban");
                     return true;
                 }
-                if (plugin.punish.removeByName(a[0], PunishManager.Type.BAN)) {
-                    msg.send(s, "done-unban", "player", a[0]);
-                } else {
-                    plugin.players.resolve(a[0], t -> {
-                        if (t != null && plugin.punish.remove(t.id(), PunishManager.Type.BAN))
-                            msg.send(s, "done-unban", "player", t.name());
-                        else msg.send(s, "not-banned");
-                    });
-                }
+                plugin.punisher.lift(s, PunishManager.Type.BAN, a[0]);
             }
             case "kick" -> {
-                if (a.length < 1) {
+                if (a.length < 2) {
                     msg.send(s, "usage-kick");
                     return true;
                 }
@@ -225,36 +217,25 @@ public final class Cmds implements TabExecutor {
                     msg.send(s, "player-not-found");
                     return true;
                 }
-                PunishManager.Rec r = new PunishManager.Rec(null, t.getUniqueId(), t.getName(), 0,
-                        reason(a, 1, plugin.getConfig().getString("punishments.default-kick-reason", "")),
-                        s.getName());
-                t.kick(msg.screen("kick", r));
-                msg.send(s, "done-kick", "player", t.getName());
-                broadcast("broadcast-kick", r);
+                plugin.punisher.punish(s, PunishManager.Type.KICK, t.getUniqueId(), t.getName(), 0, reason(a, 1, ""));
             }
             case "timeout" -> {
-                if (a.length < 2) {
+                if (a.length < 3) {
                     msg.send(s, "usage-timeout");
                     return true;
                 }
-                long dur = Dur.parse(a[1]);
+                final long dur = Dur.parse(a[1]);
                 if (dur <= 0) {
                     msg.send(s, "bad-duration");
                     return true;
                 }
-                final String why = reason(a, 2, plugin.getConfig().getString("punishments.default-timeout-reason", ""));
+                final String why = reason(a, 2, "");
                 plugin.players.resolve(a[0], t -> {
                     if (t == null) {
                         msg.send(s, "player-unknown");
                         return;
                     }
-                    PunishManager.Rec r = new PunishManager.Rec(PunishManager.Type.TIMEOUT, t.id(), t.name(),
-                            System.currentTimeMillis() + dur, why, s.getName());
-                    plugin.punish.add(r);
-                    Player on = Bukkit.getPlayer(t.id());
-                    if (on != null) on.kick(msg.screen("timeout", r));
-                    msg.send(s, "done-timeout", "player", r.name(), "duration", Dur.format(dur));
-                    broadcast("broadcast-timeout", r);
+                    plugin.punisher.punish(s, PunishManager.Type.TIMEOUT, t.id(), t.name(), dur, why);
                 });
             }
             case "untimeout" -> {
@@ -262,15 +243,46 @@ public final class Cmds implements TabExecutor {
                     msg.send(s, "usage-untimeout");
                     return true;
                 }
-                if (plugin.punish.removeByName(a[0], PunishManager.Type.TIMEOUT)) {
-                    msg.send(s, "done-untimeout", "player", a[0]);
-                } else {
-                    plugin.players.resolve(a[0], t -> {
-                        if (t != null && plugin.punish.remove(t.id(), PunishManager.Type.TIMEOUT))
-                            msg.send(s, "done-untimeout", "player", t.name());
-                        else msg.send(s, "not-timed-out");
-                    });
+                plugin.punisher.lift(s, PunishManager.Type.TIMEOUT, a[0]);
+            }
+            case "link" -> {
+                Player p = player(s);
+                if (p != null) plugin.discord.link(p);
+            }
+            case "unlink" -> {
+                Player p = player(s);
+                if (p != null) plugin.discord.unlink(p);
+            }
+            case "punish" -> {
+                if (!s.hasPermission("smpcore.staff")) {
+                    msg.send(s, "no-permission");
+                    return true;
                 }
+                if (a.length >= 2 && a[0].equalsIgnoreCase("id")) {
+                    HistoryManager.Entry e = plugin.history.get(a[1]);
+                    if (e == null) {
+                        msg.send(s, "id-not-found");
+                    } else if (s instanceof Player pl) {
+                        plugin.staffGui.openEntry(pl, e);
+                    } else {
+                        s.sendMessage(plugin.punisher.describe(e));
+                    }
+                    return true;
+                }
+                if (a.length >= 2 && a[0].equalsIgnoreCase("player")) {
+                    plugin.players.resolve(a[1], t -> {
+                        if (t == null) {
+                            msg.send(s, "player-unknown");
+                            return;
+                        }
+                        List<HistoryManager.Entry> list = plugin.history.byPlayer(t.id(), t.name());
+                        if (s instanceof Player pl) plugin.staffGui.openList(pl, t.name(), list);
+                        else list.forEach(e -> s.sendMessage(plugin.punisher.describe(e)));
+                    });
+                    return true;
+                }
+                Player sp = player(s);
+                if (sp != null) plugin.staffGui.openMain(sp);
             }
             case "smpcore" -> {
                 if (a.length > 0 && a[0].equalsIgnoreCase("reload")) {
@@ -285,7 +297,7 @@ public final class Cmds implements TabExecutor {
                     if (p == null) return true;
                     msg.send(p, "balance-self", "balance", plugin.economy.format(plugin.economy.get(p.getUniqueId())));
                 } else {
-                    plugin.players.resolve(a[0], t -> {
+                    plugin.players.resolveKnown(a[0], t -> {
                         if (t == null) {
                             msg.send(s, "player-unknown");
                             return;
@@ -312,7 +324,7 @@ public final class Cmds implements TabExecutor {
                     msg.send(p, "pay-invalid");
                     return true;
                 }
-                plugin.players.resolve(a[0], t -> {
+                plugin.players.resolveKnown(a[0], t -> {
                     if (t == null) {
                         msg.send(p, "player-unknown");
                         return;
@@ -354,6 +366,7 @@ public final class Cmds implements TabExecutor {
                         default -> e.set(t.id(), amt);
                     }
                     msg.send(s, "eco-done", "player", t.name(), "balance", e.format(e.get(t.id())));
+                    e.audit(s.getName() + " /eco " + sub + " " + t.name() + " " + amt + " -> balance " + e.get(t.id()));
                 });
             }
             case "settings" -> {
@@ -384,7 +397,7 @@ public final class Cmds implements TabExecutor {
                     msg.send(p, "fav-usage");
                     return true;
                 }
-                plugin.players.resolve(a[1], t -> {
+                plugin.players.resolveKnown(a[1], t -> {
                     if (t == null) {
                         msg.send(p, "player-unknown");
                         return;
@@ -441,6 +454,7 @@ public final class Cmds implements TabExecutor {
                 case "pay", "balance" -> Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
                 case "eco" -> out.addAll(List.of("give", "take", "set"));
                 case "tpfav" -> out.addAll(List.of("add", "remove"));
+                case "punish" -> out.addAll(List.of("id", "player"));
                 case "rtp" -> out.addAll(plugin.rtp.openWorldKeys());
                 case "rtpq" -> out.addAll(List.of("join", "leave"));
                 default -> { }
@@ -449,6 +463,9 @@ public final class Cmds implements TabExecutor {
             Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
         } else if (a.length == 2 && (cmd.equals("ban") || cmd.equals("timeout"))) {
             out.addAll(List.of("30m", "1h", "6h", "1d", "7d", "30d", "perm"));
+        }
+        if (plugin.net != null && a.length == 1 && (cmd.equals("tpa") || cmd.equals("tpahere"))) {
+            plugin.net.remotePlayers().forEach(o -> out.add(o.name()));
         }
         out.removeIf(x -> !x.toLowerCase(Locale.ROOT).startsWith(cur));
         return out;

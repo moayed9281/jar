@@ -37,11 +37,28 @@ tpa:
   incoming-menu: true
   # permission smpcore.bypass.playtime skips the playtime rule
 
+# ---------------------------------------------------------------- NETWORK (Velocity, several servers)
+# Shares money, homes, bans/timeouts/history, favorites, settings, Discord links and TPA
+# between all your servers through ONE MySQL/MariaDB database. Needs a restart to change.
+# Full guide: docs/NETWORK-SETUP.md
+network:
+  enabled: false
+  server-name: "survival"    # EXACT name of THIS server in velocity.toml
+  sync-seconds: 3            # how often servers check the database for changes
+  database:
+    host: "127.0.0.1"
+    port: 3306
+    name: "diamondcraft"
+    user: "diamondcraft"
+    password: "change-me"
+    pool-size: 6
+
 # ---------------------------------------------------------------- RTP (random teleport)
 rtp:
   enabled: true              # false = CLOSES /rtp AND /rtpq completely (and hides their buttons)
   cooldown: 30               # seconds between random teleports (0 = none)
   max-attempts: 40           # tries to find a safe spot before giving up
+  max-concurrent: 4          # how many players can search at the same time (protects the server)
   # Each world below can be closed on its own: set enabled: false
   # (e.g. enabled: false on "end" closes RTP to the End, on "nether" closes the Nether).
   # "world" is the real world folder name of your server.
@@ -96,6 +113,8 @@ economy:
   currency-single: "dollar"
   currency-plural: "dollars"
   min-pay: 1
+  max-balance: 1000000000000   # nobody can ever hold more than this
+  log-pay-over: 100000         # payments at or above this are written to economy-log.txt
   pay-presets: [100, 1000, 10000, 100000]   # amounts shown in the Pay menu
   # Needs the Vault plugin so EconomyShopGUI can use this economy.
   # Do not run another economy plugin (EssentialsX etc.) at the same time.
@@ -195,6 +214,44 @@ esc-menu:
     - {label: "Balance", command: "balance", requires: economy}
     - {label: "Settings", command: "settings"}
 
+# ---------------------------------------------------------------- DISCORD LINK
+# A Discord bot that runs INSIDE this plugin. Players type /link in the game to get a code,
+# then run /link <code> in Discord. See docs/DISCORD-SETUP.md for the 5 minute setup.
+discord:
+  enabled: false
+  bot-token: "PUT-YOUR-BOT-TOKEN-HERE"   # keep this private! Never share it.
+  guild-id: ""               # your Discord SERVER ID (makes the slash commands appear instantly)
+  linked-role-id: ""         # optional: role given to linked players (bot needs Manage Roles)
+  code-minutes: 10           # how long a /link code works
+  network-link: true         # network mode: /link also works on servers where the bot is NOT running
+  link-reward: 0             # money for linking the first time (needs economy), 0 = none
+  # Console commands run ONCE per account when linking ({player} and {uuid} are filled in).
+  # If the player is offline they run the next time they join. Examples:
+  #   link-commands: ["give {player} diamond 5", "lp user {player} permission set cool.perk true"]
+  link-commands: []
+
+# ---------------------------------------------------------------- STAFF MENU (/punish)
+# Only players with the permission smpcore.staff (OP by default) can open it.
+# Every ban, timeout and kick needs a reason and gets an ID (B-12, T-5, K-30).
+# Players with smpcore.punish.exempt cannot be punished by staff.
+staff:
+  min-reason-length: 3
+  # Names or UUIDs that staff can NEVER punish through the plugin (add your owner/admins here).
+  # OPs are also protected from non-OP staff, and players with smpcore.punish.exempt too.
+  protected: []
+  max-reason-length: 200
+  list-size: 100
+  ban-durations: ["1d", "7d", "30d", "perm"]
+  timeout-durations: ["1h", "6h", "1d", "3d", "7d"]
+  reasons:
+    - "Hacking / cheating"
+    - "Griefing"
+    - "Toxic behaviour"
+    - "Spamming"
+    - "Advertising"
+    - "Exploiting a bug"
+    - "Ban evasion"
+
 # ---------------------------------------------------------------- PUNISHMENTS
 punishments:
   default-ban-reason: "No reason given"
@@ -203,6 +260,10 @@ punishments:
   permanent-text: "Permanent"
   date-format: "yyyy-MM-dd HH:mm z"
   broadcast: true
+  # Cracked (offline-mode) servers: "Steve" and "sTeve" are different accounts, so a banned player can
+  # simply change the spelling. true = bans and timeouts also match the NAME in any upper/lower case.
+  # (On a premium server you can set this to false.)
+  match-names: true
 
 screens:
   ban:
@@ -212,16 +273,19 @@ screens:
     - "<gray>Duration: <white>{duration}"
     - "<gray>Expires: <white>{expires}"
     - "<gray>By: <white>{staff}"
+    - "<gray>Ban ID: <white>{id}"
   kick:
     - "<red><bold>You were kicked"
     - ""
     - "<gray>Reason: <white>{reason}"
+    - "<gray>Kick ID: <white>{id}"
   timeout:
     - "<gold><bold>You are in timeout"
     - ""
     - "<gray>Reason: <white>{reason}"
     - "<gray>You can rejoin in: <white>{duration}"
     - "<gray>Expires: <white>{expires}"
+    - "<gray>Timeout ID: <white>{id}"
 
 # ---------------------------------------------------------------- MESSAGES
 messages:
@@ -269,10 +333,10 @@ messages:
   baltop-line: "<gray>{rank}. <yellow>{player} <gray>- <green>{balance}"
   eco-usage: "<red>/eco <give|take|set> <player> <amount>"
   eco-done: "<green>{player}'s balance is now {balance}."
-  usage-ban: "<red>/ban <player> [duration] [reason]"
+  usage-ban: "<red>/ban <player> [duration] <reason>  (a reason is required)"
   usage-unban: "<red>/unban <player>"
-  usage-kick: "<red>/kick <player> [reason]"
-  usage-timeout: "<red>/timeout <player> <duration> [reason]"
+  usage-kick: "<red>/kick <player> <reason>  (a reason is required)"
+  usage-timeout: "<red>/timeout <player> <duration> <reason>  (a reason is required)"
   usage-untimeout: "<red>/untimeout <player>"
   not-banned: "<red>That player is not banned."
   not-timed-out: "<red>That player is not in timeout."
@@ -308,3 +372,28 @@ messages:
   rtpq-found: "<green>Match found! Teleporting in <white>{seconds}s</white>..."
   rtpq-done: "<green>You were teleported with the other players!"
   rtpq-usage: "<red>/rtpq [join|leave]"
+  no-permission: "<red>You don't have permission to do that."
+  reason-required: "<red>A reason is required (at least {min} characters)."
+  punish-self: "<red>You can't punish yourself."
+  punish-exempt: "<red>{player} can't be punished."
+  punish-id: "<gray>Punishment ID: <white>{id}"
+  id-not-found: "<red>No punishment with that ID."
+  not-active: "<red>That punishment is not active anymore."
+  discord-disabled: "<red>Discord linking is not set up on this server."
+  link-usage: "<red>Type /link to get a code."
+  link-invalid: "<red>That code is not valid."
+  link-expired: "<red>That code has expired."
+  link-taken: "<red>That Discord account is already linked to another Minecraft account."
+  link-already: "<red>Your account is already linked. Use /unlink first."
+  link-wait: "<red>Please wait a few seconds before trying again."
+  link-failed: "<red>Couldn't reach the Discord bot. Try again later."
+  link-success: "<green>Linked to Discord account <yellow>{discord}</yellow>!"
+  link-reward: "<green>You received {amount} for linking your Discord."
+  unlink-done: "<yellow>Your Discord account was unlinked."
+  unlink-none: "<red>Your account is not linked."
+  unlink-failed: "<red>Couldn't reach the Discord bot. Try again later."
+  link-code: "<green>Your link code: <click:copy_to_clipboard:'{code}'><hover:show_text:'Click to copy'><white><bold>{code}</bold></hover></click> <gray>(valid {minutes} min)<newline><gray>Now type <white>/link {code}</white> in our Discord."
+  tp-connecting: "<gray>Sending you to <white>{server}</white>..."
+  home-other-server: "<red>That home is on another server ({server}), but network mode is off."
+  punish-downgrade: "<red>That player already has a longer punishment (ID {id}). Unban first, or use a longer duration."
+  rtp-busy: "<red>Random teleport is busy right now. Try again in a few seconds."

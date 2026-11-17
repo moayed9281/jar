@@ -51,3 +51,21 @@ _playtime% _playtime_minutes% _playtime_hours% | _favorites% _favorites_online% 
 ## Updating the jar
 Replace only the jar; keep plugins/DiamondCraft/. On start, missing settings are added to your config.yml (your values are never changed) and a backup config-backup-<time>.yml is saved first.
 Lists you edited (e.g. esc-menu.buttons) are left as they are, so add new buttons by hand.
+
+## Staff punishment menu
+/punish (alias /staff) opens the staff menu (permission smpcore.staff, OP by default): punish a player, lists of active bans/timeouts, kicks, all history.
+/punish id <ID> and /punish player <name> search. Every ban/timeout/kick needs a reason and gets an ID (B-12, T-5, K-30). All logged in history.yml.
+Players with smpcore.punish.exempt cannot be punished by staff.
+
+## Discord link
+discord.* in config.yml (disabled by default). /link <code> and /unlink in game. Placeholders %diamondcraft_discord% and %diamondcraft_linked%.
+Setup: docs/DISCORD-SETUP.md (the bot runs inside the plugin, built with JDA).
+
+## Network mode (Velocity)
+network.* in config.yml, setup in docs/NETWORK-SETUP.md. Uses MySQL/MariaDB (HikariCP + MariaDB driver are bundled).
+
+## Security notes
+- staff.protected (config): names/UUIDs staff can never punish. OPs are protected from non-OP staff. smpcore.punish.exempt also protects.
+- smpcore.punish.override: allows replacing a longer ban/timeout with a shorter one (OP by default).
+- Admin /eco actions and payments over economy.log-pay-over are written to economy-log.txt.
+- In network mode, taking money is one atomic database step (no double spending between servers).

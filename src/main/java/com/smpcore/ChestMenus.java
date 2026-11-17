@@ -23,6 +23,7 @@ public final class ChestMenus implements Menus, Listener {
     private static final class Holder implements InventoryHolder {
         final Map<Integer, Runnable> actions = new HashMap<>();
         Inventory inv;
+        java.util.UUID owner;
 
         @Override
         public Inventory getInventory() {
@@ -49,6 +50,7 @@ public final class ChestMenus implements Menus, Listener {
         Holder h = new Holder();
         Inventory inv = Bukkit.createInventory(h, rows * 9, title);
         h.inv = inv;
+        h.owner = p.getUniqueId();
         int i = 0;
         for (Entry e : list) {
             inv.setItem(i, item(e));
@@ -64,7 +66,8 @@ public final class ChestMenus implements Menus, Listener {
     }
 
     private ItemStack item(Entry e) {
-        ItemStack it = new ItemStack(e.icon() == null ? org.bukkit.Material.PAPER : e.icon());
+        org.bukkit.Material mat = e.icon() == null || e.icon().isAir() ? org.bukkit.Material.PAPER : e.icon();
+        ItemStack it = new ItemStack(mat);
         ItemMeta meta = it.getItemMeta();
         meta.displayName(e.label().decoration(TextDecoration.ITALIC, false));
         if (e.tooltip() != null) meta.lore(List.of(e.tooltip().decoration(TextDecoration.ITALIC, false)));
@@ -77,7 +80,7 @@ public final class ChestMenus implements Menus, Listener {
         if (e.getInventory().getHolder() instanceof Holder h) {
             e.setCancelled(true);
             Runnable r = h.actions.get(e.getRawSlot());
-            if (r != null && e.getWhoClicked() instanceof Player pl) {
+            if (r != null && e.getWhoClicked() instanceof Player pl && pl.getUniqueId().equals(h.owner)) {
                 pl.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, r);
             }

@@ -23,10 +23,14 @@ public final class DialogMenus implements Menus {
         this.plugin = plugin;
     }
 
-    private ActionButton button(Entry e) {
+    private ActionButton button(Player owner, Entry e) {
         return ActionButton.create(e.label(), e.tooltip(), 200,
                 DialogAction.customClick(
-                        (view, audience) -> Bukkit.getScheduler().runTask(plugin, e.action()),
+                        (view, audience) -> {
+                            if (audience instanceof Player clicker && clicker.getUniqueId().equals(owner.getUniqueId())) {
+                                Bukkit.getScheduler().runTask(plugin, e.action());
+                            }
+                        },
                         ClickCallback.Options.builder()
                                 .uses(ClickCallback.UNLIMITED_USES)
                                 .lifetime(Duration.ofMinutes(10))
@@ -36,8 +40,8 @@ public final class DialogMenus implements Menus {
     @Override
     public void open(Player p, Component title, Component message, List<Entry> entries, Entry back) {
         List<ActionButton> buttons = new ArrayList<>();
-        for (Entry e : entries) buttons.add(button(e));
-        ActionButton exit = back != null ? button(back)
+        for (Entry e : entries) buttons.add(button(p, e));
+        ActionButton exit = back != null ? button(p, back)
                 : ActionButton.create(plugin.msg.text("menus.close-button"), null, 200, null);
 
         DialogBase.Builder base = DialogBase.builder(title).canCloseWithEscape(true);

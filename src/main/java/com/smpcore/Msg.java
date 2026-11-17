@@ -54,6 +54,7 @@ public final class Msg {
                     .format(new Date(r.until()));
         }
         return text("screens." + key, "player", r.name(), "reason", r.reason(),
-                "staff", r.staff(), "duration", dur, "expires", exp);
+                "staff", r.staff(), "duration", dur, "expires", exp,
+                "id", r.punishId() == null ? "" : r.punishId());
     }
 }
