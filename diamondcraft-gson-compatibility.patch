@@ -1,0 +1,63 @@
+diff --git a/src/main/java/com/smpcore/HomeManager.java b/src/main/java/com/smpcore/HomeManager.java
+--- a/src/main/java/com/smpcore/HomeManager.java
++++ b/src/main/java/com/smpcore/HomeManager.java
+@@ -157 +157 @@
+-        JsonObject o = JsonParser.parseString(value).getAsJsonObject();
++        JsonObject o = new JsonParser().parse(value).getAsJsonObject();
+diff --git a/src/main/java/com/smpcore/TpaManager.java b/src/main/java/com/smpcore/TpaManager.java
+--- a/src/main/java/com/smpcore/TpaManager.java
++++ b/src/main/java/com/smpcore/TpaManager.java
+@@ -138 +138 @@
+-        JsonObject o = JsonParser.parseString(value).getAsJsonObject();
++        JsonObject o = new JsonParser().parse(value).getAsJsonObject();
+diff --git a/src/main/java/com/smpcore/PunishManager.java b/src/main/java/com/smpcore/PunishManager.java
+--- a/src/main/java/com/smpcore/PunishManager.java
++++ b/src/main/java/com/smpcore/PunishManager.java
+@@ -136 +136 @@
+-        JsonObject o = JsonParser.parseString(json).getAsJsonObject();
++        JsonObject o = new JsonParser().parse(json).getAsJsonObject();
+diff --git a/src/main/java/com/smpcore/Players.java b/src/main/java/com/smpcore/Players.java
+--- a/src/main/java/com/smpcore/Players.java
++++ b/src/main/java/com/smpcore/Players.java
+@@ -58 +58 @@
+-        com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(value).getAsJsonObject();
++        com.google.gson.JsonObject o = new com.google.gson.JsonParser().parse(value).getAsJsonObject();
+diff --git a/src/main/java/com/smpcore/SettingsManager.java b/src/main/java/com/smpcore/SettingsManager.java
+--- a/src/main/java/com/smpcore/SettingsManager.java
++++ b/src/main/java/com/smpcore/SettingsManager.java
+@@ -95 +95 @@
+-        com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(value).getAsJsonObject();
++        com.google.gson.JsonObject o = new com.google.gson.JsonParser().parse(value).getAsJsonObject();
+diff --git a/src/main/java/com/smpcore/FavoritesManager.java b/src/main/java/com/smpcore/FavoritesManager.java
+--- a/src/main/java/com/smpcore/FavoritesManager.java
++++ b/src/main/java/com/smpcore/FavoritesManager.java
+@@ -82 +82 @@
+-        for (UUID u : map.getOrDefault(owner, new LinkedHashSet<>())) a.add(u.toString());
++        for (UUID u : map.getOrDefault(owner, new LinkedHashSet<>())) a.add(new com.google.gson.JsonPrimitive(u.toString()));
+@@ -98 +98 @@
+-        for (com.google.gson.JsonElement e : com.google.gson.JsonParser.parseString(value).getAsJsonArray()) {
++        for (com.google.gson.JsonElement e : new com.google.gson.JsonParser().parse(value).getAsJsonArray()) {
+diff --git a/src/main/java/com/smpcore/HistoryManager.java b/src/main/java/com/smpcore/HistoryManager.java
+--- a/src/main/java/com/smpcore/HistoryManager.java
++++ b/src/main/java/com/smpcore/HistoryManager.java
+@@ -219 +219 @@
+-        JsonObject o = JsonParser.parseString(value).getAsJsonObject();
++        JsonObject o = new JsonParser().parse(value).getAsJsonObject();
+diff --git a/src/main/java/com/smpcore/DiscordLink.java b/src/main/java/com/smpcore/DiscordLink.java
+--- a/src/main/java/com/smpcore/DiscordLink.java
++++ b/src/main/java/com/smpcore/DiscordLink.java
+@@ -490 +490 @@
+-            com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(v).getAsJsonObject();
++            com.google.gson.JsonObject o = new com.google.gson.JsonParser().parse(v).getAsJsonObject();
+@@ -521 +521 @@
+-            com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(value).getAsJsonObject();
++            com.google.gson.JsonObject o = new com.google.gson.JsonParser().parse(value).getAsJsonObject();
+diff --git a/src/main/java/com/smpcore/Net.java b/src/main/java/com/smpcore/Net.java
+--- a/src/main/java/com/smpcore/Net.java
++++ b/src/main/java/com/smpcore/Net.java
+@@ -94 +94 @@
+-        return JsonParser.parseString(json).getAsJsonObject();
++        return new JsonParser().parse(json).getAsJsonObject();
+@@ -403 +403 @@
+-        for (String s : kv) a.add(s);
++        for (String s : kv) a.add(new com.google.gson.JsonPrimitive(s));
