@@ -61,6 +61,13 @@
       <artifactId>mariadb-java-client</artifactId>
       <version>3.4.1</version>
     </dependency>
+    <!-- Paper provides Gson at runtime; pin a modern version for compiling (Floodgate drags in an ancient one) -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.11.0</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <build>
     <finalName>DiamondCraft</finalName>
