@@ -1,0 +1,36 @@
+name: Build DiamondCraft
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Fix Gson API compatibility before compiling.
+      - name: Apply Gson compatibility fixes
+        run: |
+          find src/main/java -name '*.java' -print0 | xargs -0 perl -0pi -e '
+            s/com\\.google\\.gson\\.JsonParser\\.parseString\\(/new com.google.gson.JsonParser().parse(/g;
+            s/(?<![\\w.])JsonParser\\.parseString\\(/new JsonParser().parse(/g;
+            s/\\ba\\.add\\(u\\.toString\\(\\)\\);/a.add(new com.google.gson.JsonPrimitive(u.toString()));/g;
+            s/\\ba\\.add\\(s\\);/a.add(new com.google.gson.JsonPrimitive(s));/g;
+          '
+
+      - name: Build with Maven
+        run: mvn -B clean package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DiamondCraft-jar
+          path: target/DiamondCraft.jar
