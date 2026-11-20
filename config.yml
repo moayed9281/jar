@@ -1,0 +1,410 @@
+# ============ DiamondCraft config ============
+# Text uses MiniMessage: <red>, <gold>, <bold>, <gradient:red:blue> ...
+# Reload with /smpcore reload.  (Esc menu + menu style changes need a server RESTART.)
+
+prefix: "<dark_gray>[<aqua>DiamondCraft<dark_gray>] <gray>"
+
+# ---------------------------------------------------------------- HOMES
+homes:
+  # Homes every normal player gets for free
+  default-limit: 1
+  # Home limits per LuckPerms GROUP NAME. A player gets the HIGHEST one they match.
+  # Rename the groups to your LuckPerms group names and change the numbers.
+  # Add or remove lines as you like (5 VIP ranks are set up as an example).
+  group-limits:
+    vip: 3
+    vip2: 5
+    vip3: 8
+    vip4: 12
+    vip5: 20
+  # You can ALSO use permissions: smpcore.homes.<number> (e.g. smpcore.homes.10)
+  # and smpcore.homes.unlimited
+  max-name-length: 16
+  open-menu-on-home: true
+
+# ---------------------------------------------------------------- TELEPORT / TPA
+teleport:
+  delay: 3
+  cancel-on-move: true
+
+tpa:
+  tpa-enabled: true                  # false = /tpa is disabled for everyone
+  tpahere-enabled: true              # false = /tpahere is disabled for everyone
+  tpa-min-playtime-minutes: 0        # playtime needed before /tpa (0 = no limit)
+  tpahere-min-playtime-minutes: 0    # playtime needed before /tpahere (0 = no limit)
+  expire: 60
+  cooldown: 10
+  incoming-menu: true
+  # permission smpcore.bypass.playtime skips the playtime rule
+
+# ---------------------------------------------------------------- NETWORK (Velocity, several servers)
+# Shares money, homes, bans/timeouts/history, favorites, settings, Discord links and TPA
+# between all your servers through ONE MySQL/MariaDB database. Needs a restart to change.
+# Full guide: docs/NETWORK-SETUP.md
+network:
+  enabled: false
+  server-name: "survival"    # EXACT name of THIS server in velocity.toml
+  sync-seconds: 3            # how often servers check the database for changes
+  database:
+    host: "127.0.0.1"
+    port: 3306
+    name: "diamondcraft"
+    user: "diamondcraft"
+    password: "change-me"
+    pool-size: 6
+
+# ---------------------------------------------------------------- RTP (random teleport)
+rtp:
+  enabled: true              # false = CLOSES /rtp AND /rtpq completely (and hides their buttons)
+  cooldown: 30               # seconds between random teleports (0 = none)
+  max-attempts: 40           # tries to find a safe spot before giving up
+  max-concurrent: 4          # how many players can search at the same time (protects the server)
+  # Each world below can be closed on its own: set enabled: false
+  # (e.g. enabled: false on "end" closes RTP to the End, on "nether" closes the Nether).
+  # "world" is the real world folder name of your server.
+  # Distances are measured from the center. A random spot between min and max is used.
+  worlds:
+    overworld:
+      enabled: true
+      world: "world"
+      name: "Overworld"
+      color: "<green>"
+      icon: GRASS_BLOCK
+      center-x: 0
+      center-z: 0
+      min-radius: 500
+      max-radius: 5000
+      price: 0               # needs economy.enabled; 0 = free
+    nether:
+      enabled: true
+      world: "world_nether"
+      name: "Nether"
+      color: "<red>"
+      icon: NETHERRACK
+      center-x: 0
+      center-z: 0
+      min-radius: 100
+      max-radius: 1500
+      price: 0
+    end:
+      enabled: true
+      world: "world_the_end"
+      name: "The End"
+      color: "<light_purple>"
+      icon: END_STONE
+      center-x: 0
+      center-z: 0
+      min-radius: 1000       # outer End islands start around 1000 blocks out
+      max-radius: 3000
+      price: 0
+  # RTP Queue (/rtpq): players join the queue; when enough are waiting, they all
+  # get teleported to the SAME random spot a few seconds later.
+  queue:
+    enabled: true            # false = closes only /rtpq
+    world: overworld         # which world above the queue uses
+    players: 2               # players needed to start
+    match-delay: 3           # seconds after enough players joined
+
+# ---------------------------------------------------------------- ECONOMY
+economy:
+  enabled: true                      # false = economy, /pay, /balance and Vault hook are off
+  starting-balance: 100
+  symbol: "$"
+  currency-single: "dollar"
+  currency-plural: "dollars"
+  min-pay: 1
+  max-balance: 1000000000000   # nobody can ever hold more than this
+  log-pay-over: 100000         # payments at or above this are written to economy-log.txt
+  pay-presets: [100, 1000, 10000, 100000]   # amounts shown in the Pay menu
+  # Needs the Vault plugin so EconomyShopGUI can use this economy.
+  # Do not run another economy plugin (EssentialsX etc.) at the same time.
+
+favorites:
+  max: 20                            # favourite friends per player
+
+# ---------------------------------------------------------------- SETTINGS MENU
+settings:
+  night-vision: true                 # show the Night Vision toggle
+
+# ---------------------------------------------------------------- MENUS
+menus:
+  use-dialogs: true
+  use-bedrock-forms: true
+  main-title: "<aqua><bold>DiamondCraft"
+  main-info: "<gray>Pick an option."
+  home-title: "<aqua>DiamondCraft <gray>| <gold>Homes ({used}/{limit})"
+  home-info: "<gray>Click a home to manage it."
+  home-button: "<yellow>{home}"
+  set-home-button: "<green>+ Set new home here"
+  home-actions-title: "<aqua>DiamondCraft <gray>| <gold>{home}"
+  teleport-button: "<green>Teleport"
+  delete-button: "<red>Delete"
+  back-button: "<gray>Back"
+  close-button: "<gray>Close"
+  tpa-title: "<aqua>DiamondCraft <gray>| <gold>Teleport to a player"
+  tpahere-title: "<aqua>DiamondCraft <gray>| <gold>Bring a player to you"
+  tpa-info: "<gray>Pick a player to send a request to."
+  tpa-no-players: "<red>No other players are online."
+  incoming-title: "<aqua>DiamondCraft <gray>| <gold>Teleport request"
+  incoming-to-you: "<yellow>{player}</yellow> wants to teleport to you."
+  incoming-here: "<yellow>{player}</yellow> wants you to teleport to them."
+  accept-button: "<green>Accept"
+  deny-button: "<red>Deny"
+  settings-title: "<aqua>DiamondCraft <gray>| <gold>Settings"
+  nightvision-button: "<yellow>Night Vision: {state}"
+  tpa-requests-button: "<yellow>Accept teleport requests: {state}"
+  state-on: "<green>ON"
+  state-off: "<red>OFF"
+  pay-title: "<aqua>DiamondCraft <gray>| <gold>Pay a player"
+  pay-info: "<gray>Pick a player to pay."
+  pay-amount-title: "<aqua>DiamondCraft <gray>| <gold>Pay {player}"
+  pay-button: "<green>Pay {amount}"
+  teleport-title: "<aqua>DiamondCraft <gray>| <gold>Teleport"
+  teleport-info: "<gray>Choose how you want to teleport."
+  tpa-menu-button: "<aqua>Teleport to a player <gray>(TPA)"
+  tpahere-menu-button: "<aqua>Bring a player to me <gray>(TPA Here)"
+  favorites-button: "<gold>★ Favorites"
+  fav-title: "<aqua>DiamondCraft <gray>| <gold>Favorites"
+  fav-info: "<gray>Click a friend to teleport faster."
+  fav-empty: "<gray>No favorites yet. Add a friend below."
+  fav-add-button: "<green>+ Add a friend"
+  fav-add-title: "<aqua>DiamondCraft <gray>| <gold>Add a friend"
+  fav-actions-title: "<aqua>DiamondCraft <gray>| <gold>{player}"
+  fav-tpa-button: "<green>Teleport to them (TPA)"
+  fav-tpahere-button: "<green>Bring them to me (TPA Here)"
+  fav-remove-button: "<red>Remove from favorites"
+  rtp-title: "<aqua>DiamondCraft <gray>| <gold>Random Teleport"
+  rtp-info: "<gray>Pick a world to teleport to a random spot."
+  rtpq-title: "<aqua>DiamondCraft <gray>| <gold>RTP Queue"
+  rtpq-info: "<gray>Teleport to a random spot together with another player. In queue: <white>{count}</white>/{need}"
+  rtpq-join-button: "<green>Join the queue"
+  rtpq-leave-button: "<red>Leave the queue"
+  status-title: "<aqua>DiamondCraft <gray>| <gold>Status"
+  status-lines:
+    - "<gray>Name: <white>{player}"
+    - "<gray>Money: <green>{money}"
+    - "<gray>Playtime: <yellow>{playtime}"
+    - "<gray>Homes: <white>{homes}"
+
+# ---------------------------------------------------------------- ESC MENU
+# Button in the Esc (pause) menu, Java 1.21.6+. Needs a server RESTART to change.
+# Every button runs a command for the player (no leading slash).
+# requires: economy  ->  button is hidden when economy.enabled is false.
+# /menu opens the same buttons for Bedrock players or NPCs.
+esc-menu:
+  enabled: true
+  title: "<aqua><bold>DiamondCraft"
+  body: "<gray>Homes, teleport, shop and more"
+  columns: 2
+  button-width: 150
+  buttons:
+    - {label: "Homes", command: "homes"}
+    - {label: "RTP", command: "rtp", requires: rtp}
+    # Auction runs another plugin's command. Change "ah" to your auction plugin's command
+    # or delete this line if you have no auction plugin.
+    - {label: "Auction", command: "ah"}
+    - {label: "RTP Queue", command: "rtpq", requires: rtpq}
+    # Shop and Sell use EconomyShopGUI (/shop and /sellgui). Premium: same commands.
+    - {label: "Shop", command: "shop", requires: economy}
+    - {label: "Friends", command: "tpfav"}
+    - {label: "Sell", command: "sellgui", requires: economy}
+    - {label: "Pay", command: "pay", requires: economy}
+    - {label: "Teleport", command: "tpmenu"}
+    - {label: "Status", command: "status"}
+    - {label: "Balance", command: "balance", requires: economy}
+    - {label: "Settings", command: "settings"}
+
+# ---------------------------------------------------------------- DISCORD LINK
+# A Discord bot that runs INSIDE this plugin. Players type /link in the game to get a code,
+# then run /link <code> in Discord. See docs/DISCORD-SETUP.md for the 5 minute setup.
+discord:
+  enabled: false
+  bot-token: "PUT-YOUR-BOT-TOKEN-HERE"   # keep this private! Never share it.
+  guild-id: ""               # your Discord SERVER ID (makes the slash commands appear instantly)
+  linked-role-id: ""         # optional: role given to linked players (bot needs Manage Roles)
+  code-minutes: 10           # how long a /link code works
+  network-link: true         # network mode: /link also works on servers where the bot is NOT running
+  # ---- LOG CHANNELS: the bot posts bans, timeouts, kicks, unbans, /eco actions and links here.
+  # How to get a channel ID: Discord Settings > Advanced > Developer Mode ON, then right-click the
+  # channel > Copy Channel ID. The bot needs View Channel, Send Messages and Embed Links there.
+  # Check it with /smpcore testlog (after /smpcore reload).
+  logs:
+    channel-id: ""               # default channel for ALL logs (leave empty = no logs)
+    punishments-channel-id: ""   # optional: bans / timeouts / kicks / unbans go here instead
+    economy-channel-id: ""       # optional: /eco and big payments go here instead
+    links-channel-id: ""         # optional: Discord link / unlink events go here instead
+  link-reward: 0             # money for linking the first time (needs economy), 0 = none
+  # Console commands run ONCE per account when linking ({player} and {uuid} are filled in).
+  # If the player is offline they run the next time they join. Examples:
+  #   link-commands: ["give {player} diamond 5", "lp user {player} permission set cool.perk true"]
+  link-commands: []
+
+# ---------------------------------------------------------------- STAFF MENU (/punish)
+# Only players with the permission smpcore.staff (OP by default) can open it.
+# Every ban, timeout and kick needs a reason and gets an ID (B-12, T-5, K-30).
+# Players with smpcore.punish.exempt cannot be punished by staff.
+staff:
+  min-reason-length: 3
+  # Names or UUIDs that staff can NEVER punish through the plugin (add your owner/admins here).
+  # OPs are also protected from non-OP staff, and players with smpcore.punish.exempt too.
+  protected: []
+  max-reason-length: 200
+  list-size: 100
+  ban-durations: ["1d", "7d", "30d", "perm"]
+  timeout-durations: ["1h", "6h", "1d", "3d", "7d"]
+  reasons:
+    - "Hacking / cheating"
+    - "Griefing"
+    - "Toxic behaviour"
+    - "Spamming"
+    - "Advertising"
+    - "Exploiting a bug"
+    - "Ban evasion"
+
+# ---------------------------------------------------------------- PUNISHMENTS
+punishments:
+  default-ban-reason: "No reason given"
+  default-kick-reason: "No reason given"
+  default-timeout-reason: "No reason given"
+  permanent-text: "Permanent"
+  date-format: "yyyy-MM-dd HH:mm z"
+  broadcast: true
+  # Cracked (offline-mode) servers: "Steve" and "sTeve" are different accounts, so a banned player can
+  # simply change the spelling. true = bans and timeouts also match the NAME in any upper/lower case.
+  # (On a premium server you can set this to false.)
+  match-names: true
+
+screens:
+  ban:
+    - "<red><bold>You are banned"
+    - ""
+    - "<gray>Reason: <white>{reason}"
+    - "<gray>Duration: <white>{duration}"
+    - "<gray>Expires: <white>{expires}"
+    - "<gray>By: <white>{staff}"
+    - "<gray>Ban ID: <white>{id}"
+  kick:
+    - "<red><bold>You were kicked"
+    - ""
+    - "<gray>Reason: <white>{reason}"
+    - "<gray>Kick ID: <white>{id}"
+  timeout:
+    - "<gold><bold>You are in timeout"
+    - ""
+    - "<gray>Reason: <white>{reason}"
+    - "<gray>You can rejoin in: <white>{duration}"
+    - "<gray>Expires: <white>{expires}"
+    - "<gray>Timeout ID: <white>{id}"
+
+# ---------------------------------------------------------------- MESSAGES
+messages:
+  player-only: "<red>Only players can use this."
+  player-not-found: "<red>Player not found."
+  player-unknown: "<red>Couldn't find that player. Bedrock players: include the prefix, e.g. .Name"
+  bad-duration: "<red>Invalid duration. Use e.g. 30m, 2h, 7d, 1w."
+  reloaded: "<green>Config reloaded."
+  home-invalid-name: "<red>Home names: letters, numbers, - and _ only (max {max} chars)."
+  home-limit: "<red>You reached your home limit (<white>{limit}</white>)."
+  home-set: "<green>Home <yellow>{home}</yellow> set."
+  home-deleted: "<yellow>{home}</yellow> deleted."
+  home-none: "<red>You have no homes. Use /sethome."
+  home-not-found: "<red>No home named <yellow>{home}</yellow>."
+  tp-countdown: "<gray>Teleporting in <white>{seconds}s</white>... don't move."
+  tp-cancelled: "<red>Teleport cancelled because you moved."
+  tp-already: "<red>You are already teleporting."
+  tp-done: "<green>Teleported to <yellow>{target}</yellow>."
+  tpa-self: "<red>You can't teleport to yourself."
+  tpa-disabled: "<red>This command is disabled."
+  tpa-playtime: "<red>You need <white>{minutes}</white> more minutes of playtime to use this (required: {required} min)."
+  tpa-blocked: "<red>{player} is not accepting teleport requests."
+  tpa-cooldown: "<red>Wait <white>{seconds}s</white> before sending another request."
+  tpa-sent: "<green>Request sent to <yellow>{player}</yellow>."
+  tpa-received: "<yellow>{player}</yellow> wants to teleport to you. <green><click:run_command:'/tpaccept {player}'>[Accept]</click> <red><click:run_command:'/tpdeny {player}'>[Deny]</click>"
+  tpahere-received: "<yellow>{player}</yellow> wants you to teleport to them. <green><click:run_command:'/tpaccept {player}'>[Accept]</click> <red><click:run_command:'/tpdeny {player}'>[Deny]</click>"
+  tpa-none: "<red>You have no pending requests."
+  tpa-offline: "<red>That player went offline."
+  tpa-accepted: "<green>Request accepted."
+  tpa-accepted-sender: "<yellow>{player}</yellow> accepted your request."
+  tpa-denied: "<yellow>Request denied."
+  tpa-denied-sender: "<yellow>{player}</yellow> denied your request."
+  tpa-cancelled: "<yellow>Your requests were cancelled."
+  economy-disabled: "<red>The economy is disabled."
+  balance-self: "<gray>Your balance: <green>{balance}"
+  balance-other: "<yellow>{player}</yellow><gray>'s balance: <green>{balance}"
+  pay-usage: "<red>/pay <player> <amount>"
+  pay-invalid: "<red>Invalid amount. Examples: 500, 2.5k, 1m"
+  pay-min: "<red>Minimum payment is {amount}."
+  pay-self: "<red>You can't pay yourself."
+  pay-no-money: "<red>You don't have enough money."
+  pay-sent: "<green>You paid <yellow>{player}</yellow> <green>{amount}."
+  pay-received: "<green>You received {amount} from <yellow>{player}</yellow>."
+  baltop-header: "<gold>Top balances"
+  baltop-line: "<gray>{rank}. <yellow>{player} <gray>- <green>{balance}"
+  eco-usage: "<red>/eco <give|take|set> <player> <amount>"
+  eco-done: "<green>{player}'s balance is now {balance}."
+  usage-ban: "<red>/ban <player> [duration] <reason>  (a reason is required)"
+  usage-unban: "<red>/unban <player>"
+  usage-kick: "<red>/kick <player> <reason>  (a reason is required)"
+  usage-timeout: "<red>/timeout <player> <duration> <reason>  (a reason is required)"
+  usage-untimeout: "<red>/untimeout <player>"
+  not-banned: "<red>That player is not banned."
+  not-timed-out: "<red>That player is not in timeout."
+  done-ban: "<green>Banned <yellow>{player}</yellow> ({duration})."
+  done-unban: "<green>Unbanned <yellow>{player}</yellow>."
+  done-kick: "<green>Kicked <yellow>{player}</yellow>."
+  done-timeout: "<green>Timed out <yellow>{player}</yellow> for {duration}."
+  done-untimeout: "<green>Removed timeout from <yellow>{player}</yellow>."
+  broadcast-ban: "<red>{player} was banned by {staff}. <gray>Reason: {reason} ({duration})"
+  broadcast-kick: "<red>{player} was kicked by {staff}. <gray>Reason: {reason}"
+  broadcast-timeout: "<gold>{player} was timed out by {staff} for {duration}. <gray>Reason: {reason}"
+  fav-added: "<green>Added <yellow>{player}</yellow> to your favorites."
+  fav-removed: "<yellow>{player}</yellow> removed from your favorites."
+  fav-already: "<red>{player} is already in your favorites."
+  fav-not: "<red>{player} is not in your favorites."
+  fav-self: "<red>You can't add yourself."
+  fav-max: "<red>Your favorites list is full ({max})."
+  fav-usage: "<red>/tpfav [add|remove] <player>"
+  rtp-closed: "<red>Random teleport is closed."
+  rtp-world-closed: "<red>Random teleport is closed in that world."
+  rtp-no-world: "<red>That world is not available on this server."
+  rtp-cooldown: "<red>Wait <white>{seconds}s</white> before using random teleport again."
+  rtp-searching: "<red>Already searching for a spot..."
+  rtp-finding: "<gray>Searching for a safe spot..."
+  rtp-fail: "<red>Couldn't find a safe spot. Try again."
+  rtp-no-money: "<red>You need {amount} for this."
+  rtpq-closed: "<red>The RTP queue is closed."
+  rtpq-already: "<red>You are already in the queue."
+  rtpq-joined: "<green>You joined the RTP queue."
+  rtpq-left: "<yellow>You left the RTP queue."
+  rtpq-not-queued: "<red>You are not in the queue."
+  rtpq-searching: "<gray>Searching for other players... <white>{count}</white>/{need}"
+  rtpq-found: "<green>Match found! Teleporting in <white>{seconds}s</white>..."
+  rtpq-done: "<green>You were teleported with the other players!"
+  rtpq-usage: "<red>/rtpq [join|leave]"
+  no-permission: "<red>You don't have permission to do that."
+  reason-required: "<red>A reason is required (at least {min} characters)."
+  punish-self: "<red>You can't punish yourself."
+  punish-exempt: "<red>{player} can't be punished."
+  punish-id: "<gray>Punishment ID: <white>{id}"
+  id-not-found: "<red>No punishment with that ID."
+  not-active: "<red>That punishment is not active anymore."
+  discord-disabled: "<red>Discord linking is not set up on this server."
+  link-usage: "<red>Type /link to get a code."
+  link-invalid: "<red>That code is not valid."
+  link-expired: "<red>That code has expired."
+  link-taken: "<red>That Discord account is already linked to another Minecraft account."
+  link-already: "<red>Your account is already linked. Use /unlink first."
+  link-wait: "<red>Please wait a few seconds before trying again."
+  link-failed: "<red>Couldn't reach the Discord bot. Try again later."
+  link-success: "<green>Linked to Discord account <yellow>{discord}</yellow>!"
+  link-reward: "<green>You received {amount} for linking your Discord."
+  unlink-done: "<yellow>Your Discord account was unlinked."
+  unlink-none: "<red>Your account is not linked."
+  unlink-failed: "<red>Couldn't reach the Discord bot. Try again later."
+  link-code: "<green>Your link code: <click:copy_to_clipboard:'{code}'><hover:show_text:'Click to copy'><white><bold>{code}</bold></hover></click> <gray>(valid {minutes} min)<newline><gray>Now type <white>/link {code}</white> in our Discord."
+  tp-connecting: "<gray>Sending you to <white>{server}</white>..."
+  home-other-server: "<red>That home is on another server ({server}), but network mode is off."
+  punish-downgrade: "<red>That player already has a longer punishment (ID {id}). Unban first, or use a longer duration."
+  rtp-busy: "<red>Random teleport is busy right now. Try again in a few seconds."
+  discord-testlog-ok: "<green>Test log sent to {count} channel(s). Check Discord."
+  discord-testlog-none: "<red>No log channel is set (discord.logs.*), the channel is wrong, or the bot is not online."
