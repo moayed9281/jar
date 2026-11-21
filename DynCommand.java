@@ -26,6 +26,12 @@ public final class DynCommand extends Command {
             plugin.cmdlog.denied(sender, line);
             return true;
         }
+        if (sender instanceof org.bukkit.entity.Player pl && plugin.combat.blocksCommand(pl, getName())) {
+            int left = plugin.combat.remaining(pl);
+            plugin.cmdlog.blocked(sender, line, "BLOCKED (in combat, " + left + "s left)");
+            sender.sendMessage(plugin.msg.prefixed("combat-blocked", "seconds", String.valueOf(left)));
+            return true;
+        }
         plugin.cmdlog.start(sender, line);
         try {
             return cmds.onCommand(sender, this, label, args);

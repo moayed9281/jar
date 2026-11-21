@@ -364,13 +364,14 @@ public final class Cmds implements TabExecutor {
                         return;
                     }
                     EconomyManager e = plugin.economy;
+                    final double before = e.get(t.id());
                     switch (sub) {
                         case "give" -> e.deposit(t.id(), amt);
                         case "take" -> e.set(t.id(), e.get(t.id()) - amt);
                         default -> e.set(t.id(), amt);
                     }
                     msg.send(s, "eco-done", "player", t.name(), "balance", e.format(e.get(t.id())));
-                    e.audit(s.getName() + " /eco " + sub + " " + t.name() + " " + amt + " -> balance " + e.get(t.id()));
+                    e.logAdmin(s.getName(), sub, t.name(), amt, before, e.get(t.id()));
                 });
             }
             case "settings" -> {

@@ -419,6 +419,7 @@ public final class DiscordLink extends ListenerAdapter {
         double amt = plugin.getConfig().getDouble("discord.link-reward", 0);
         if (amt > 0 && plugin.economy.enabled()) {
             plugin.economy.deposit(id, amt);
+            plugin.economy.logMisc("rewards", "Discord link reward", id, amt, false);
             if (on != null) plugin.msg.send(on, "link-reward", "amount", plugin.economy.format(amt));
         }
         if (!plugin.getConfig().getStringList("discord.link-commands").isEmpty()) {
@@ -608,9 +609,13 @@ public final class DiscordLink extends ListenerAdapter {
     }
 
     public void logEconomy(String text) {
+        logEconomy("Economy", text, 0xFFD700);
+    }
+
+    public void logEconomy(String title, String text, int color) {
         if (!ready()) return;
-        sendEmbed("economy", new EmbedBuilder().setTitle("Economy").setDescription(safe(text))
-                .setColor(0xFFD700).setFooter(plugin.serverName()).setTimestamp(Instant.now()));
+        sendEmbed("economy", new EmbedBuilder().setTitle(title).setDescription(safe(text))
+                .setColor(color).setFooter(plugin.serverName()).setTimestamp(Instant.now()));
     }
 
     public void logLink(String text) {

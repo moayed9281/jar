@@ -67,6 +67,12 @@ public final class CommandLog {
         }
     }
 
+    public void blocked(CommandSender s, String line, String reason) {
+        if (enabled() && !excluded(line) && plugin.getConfig().getBoolean("command-log.log-denied", true)) {
+            emit(s.getName(), line, false, reason);
+        }
+    }
+
     public void error(CommandSender s, String line, Throwable t) {
         Pending p = pending.get(s.getName());
         if (p != null) finish(s.getName(), p, false, "ERROR " + t);

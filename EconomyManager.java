@@ -78,15 +78,126 @@ public final class EconomyManager {
 
     /** Admin/large-payment audit trail (plugins/DiamondCraft/economy-log.txt). */
     public void audit(String text) {
-        plugin.getLogger().info("[ECO] " + text);
-        plugin.discord.logEconomy(text);
-        String line = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + " " + text + System.lineSeparator();
+        record("Economy", text, 0xFFD700);
+    }
+
+    /** One line in the console, economy-log.txt and the Discord economy channel. Safe from any thread. */
+    public void record(String title, String text, int color) {
+        String flat = text.replace("\n", " | ");
+        plugin.getLogger().info("[ECO] " + title + ": " + flat);
+        plugin.discord.logEconomy(title, text, color);
+        String line = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + " " + title + ": " + flat + System.lineSeparator();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 Files.writeString(new File(plugin.getDataFolder(), "economy-log.txt").toPath(), line,
                         StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException ignored) { }
         });
+    }
+
+    // ------------------------------------------------------------ transaction log
+    private boolean logOn(String type) {
+        var c = plugin.getConfig();
+        return c.getBoolean("economy.log.enabled", true) && c.getBoolean("economy.log." + type, true);
+    }
+
+    /** /eco give | take | set. Always logged. */
+    public void logAdmin(String staff, String sub, String target, double amt, double before, double after) {
+        String title = switch (sub) {
+            case "give" -> "Money given (admin)";
+            case "take" -> "Money taken (admin)";
+            default -> "Balance set (admin)";
+        };
+        int color = sub.equals("give") ? 0x55FF55 : sub.equals("take") ? 0xFF5555 : 0xFFAA00;
+        record(title, staff + " /eco " + sub + " " + target + " " + format(amt) + "\nBalance: "
+                + format(before) + " -> " + format(after), color);
+    }
+
+    /** A player-to-player payment. */
+    public void logPay(String from, String to, double amt) {
+        if (logOn("pay")) {
+            record("Payment", from + " paid " + to + " " + format(amt), 0xFFD700);
+        } else if (amt >= plugin.getConfig().getDouble("economy.log-pay-over", 100000)) {
+            audit(from + " paid " + to + " " + format(amt));
+        }
+    }
+
+    /** RTP prices, refunds and the Discord link reward. type = rtp | rewards. */
+    public void logMisc(String type, String title, UUID id, double amt, boolean taken) {
+        if (!logOn(type)) return;
+        record(title, plugin.players.nameFor(id) + (taken ? " paid " : " received ") + format(amt), taken ? 0xFF5555 : 0x55FF55);
+    }
+
+    private static final class Agg {
+        final String who;
+        final boolean taken;
+        final String src;
+        double sum;
+        int count;
+        double balance;
+
+        Agg(String who, boolean taken, String src) {
+            this.who = who;
+            this.taken = taken;
+            this.src = src;
+        }
+    }
+
+    private final Map<String, Agg> aggs = new HashMap<>();
+
+    /**
+     * Money moved through Vault by another plugin (EconomyShopGUI buy / sell, quests, ...).
+     * taken = true: the player paid. Many moves of the same kind within 2 seconds (sell all) become one line.
+     */
+    public void logVault(UUID id, boolean taken, double amt, double balanceAfter) {
+        if (!logOn("shop")) return;
+        if (amt < plugin.getConfig().getDouble("economy.log.shop-min-amount", 0)) return;
+        String src = callerPlugin();
+        String who = plugin.players.nameFor(id);
+        String key = id + "|" + taken + "|" + src;
+        synchronized (aggs) {
+            Agg a = aggs.get(key);
+            if (a == null) {
+                a = new Agg(who, taken, src);
+                aggs.put(key, a);
+                Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> flush(key), 40L);
+            }
+            a.sum += amt;
+            a.count++;
+            a.balance = balanceAfter;
+        }
+    }
+
+    private void flush(String key) {
+        Agg a;
+        synchronized (aggs) {
+            a = aggs.remove(key);
+        }
+        if (a == null) return;
+        String title = a.taken ? "Money taken (shop / purchase)" : "Money given (shop / sale)";
+        String text = a.who + (a.taken ? " paid " : " received ") + format(a.sum) + "\nBy: " + a.src
+                + (a.count > 1 ? " (" + a.count + " transactions)" : "") + "\nBalance now: " + format(a.balance);
+        record(title, text, a.taken ? 0xFF5555 : 0x55FF55);
+    }
+
+    /** Name of the plugin that called Vault (first plugin on the call stack that is not us or Vault). */
+    private String callerPlugin() {
+        try {
+            return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).walk(s -> s
+                    .map(StackWalker.StackFrame::getDeclaringClass)
+                    .map(cl -> {
+                        try {
+                            return org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(cl);
+                        } catch (Throwable t) {
+                            return null;
+                        }
+                    })
+                    .filter(pl -> pl != null && pl != plugin && !pl.getName().equalsIgnoreCase("Vault"))
+                    .map(org.bukkit.plugin.Plugin::getName)
+                    .findFirst().orElse("another plugin"));
+        } catch (Throwable t) {
+            return "another plugin";
+        }
     }
 
     // ------------------------------------------------------------ reading
@@ -237,9 +348,7 @@ public final class EconomyManager {
             return;
         }
         deposit(toId, amt);
-        if (amt >= plugin.getConfig().getDouble("economy.log-pay-over", 100000)) {
-            audit(from.getName() + " paid " + toName + " " + format(amt));
-        }
+        logPay(from.getName(), toName, amt);
         m.send(from, "pay-sent", "amount", format(amt), "player", toName);
         Player to = Bukkit.getPlayer(toId);
         if (to != null) {

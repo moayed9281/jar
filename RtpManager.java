@@ -125,9 +125,16 @@ public final class RtpManager {
                 m.send(p, "rtp-no-money", "amount", plugin.economy.format(price));
                 return;
             }
-            plugin.tp.go(p, () -> loc, name,
-                    () -> cooldown.put(p.getUniqueId(), System.currentTimeMillis()),
-                    charge ? () -> plugin.economy.deposit(p.getUniqueId(), price) : null);
+            if (charge) plugin.economy.logMisc("rtp", "RTP fee", p.getUniqueId(), price, true);
+            plugin.tp.go(p, () -> fresh(world, loc), name,
+                    () -> {
+                        cooldown.put(p.getUniqueId(), System.currentTimeMillis());
+                        unstick(p);
+                    },
+                    charge ? () -> {
+                        plugin.economy.deposit(p.getUniqueId(), price);
+                        plugin.economy.logMisc("rtp", "RTP refund", p.getUniqueId(), price, false);
+                    } : null);
         });
     }
 
@@ -224,11 +231,16 @@ public final class RtpManager {
         find(world, w, loc -> {
             for (Player q : group) {
                 if (!q.isOnline()) continue;
+                if (plugin.combat.restricted(q)) {
+                    q.sendMessage(plugin.msg.prefixed("combat-blocked", "seconds", String.valueOf(plugin.combat.remaining(q))));
+                    continue;
+                }
                 if (loc == null) {
                     plugin.msg.send(q, "rtp-fail");
                     continue;
                 }
-                q.teleportAsync(loc);
+                q.teleportAsync(fresh(world, loc));
+                unstick(q);
                 q.playSound(loc, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f);
                 plugin.msg.send(q, "rtpq-done");
                 cooldown.put(q.getUniqueId(), System.currentTimeMillis());
@@ -258,8 +270,14 @@ public final class RtpManager {
         w.getChunkAtAsync(x >> 4, z >> 4).whenComplete((chunk, err) ->
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     Location loc = err == null ? check(w, x, z) : null;
-                    if (loc != null) cb.accept(loc);
-                    else search(w, cx, cz, min, max, left - 1, cb);
+                    if (loc != null) {
+                        // keep the chunk loaded until the teleport happened (it could unload during the countdown)
+                        chunk.addPluginChunkTicket(plugin);
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> chunk.removePluginChunkTicket(plugin), 600L);
+                        cb.accept(loc);
+                    } else {
+                        search(w, cx, cz, min, max, left - 1, cb);
+                    }
                 }));
     }
 
@@ -277,11 +295,53 @@ public final class RtpManager {
             if (floor(w, x, hy, z)) y = hy;
         }
         if (y == Integer.MIN_VALUE) return null;
-        if (w.getEnvironment() == World.Environment.NORMAL && w.getBlockAt(x, y + 1, z).getLightFromSky() < 14) {
+        if (w.getEnvironment() == World.Environment.NORMAL && !openToSky(w, x, y, z)) {
             return null; // covered by blocks = cave or roof, not the surface
         }
         Location loc = new Location(w, x + 0.5, y + 1, z + 0.5);
         return w.getWorldBorder().isInside(loc) ? loc : null;
+    }
+
+    /** Nothing solid (except leaves) above the spot: it is really on the surface, not in a cave. */
+    private boolean openToSky(World w, int x, int y, int z) {
+        for (int yy = y + 3; yy < w.getMaxHeight(); yy++) {
+            Material t = w.getBlockAt(x, yy, z).getType();
+            if (t.isSolid() && !t.name().contains("LEAVES")) return false;
+        }
+        return w.getBlockAt(x, y + 1, z).getLightFromSky() >= 10;
+    }
+
+    /** The spot is checked again right before the teleport (the world may have changed since the search). */
+    private Location fresh(World w, Location found) {
+        Location again = check(w, found.getBlockX(), found.getBlockZ());
+        return again != null ? again : found;
+    }
+
+    /** A moment after arriving: if the player is stuck inside blocks, move them up to the surface. */
+    private void unstick(Player p) {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!p.isOnline()) return;
+            Location l = p.getLocation();
+            World w = l.getWorld();
+            int x = l.getBlockX();
+            int z = l.getBlockZ();
+            if (w.getBlockAt(x, l.getBlockY(), z).isPassable() && w.getBlockAt(x, l.getBlockY() + 1, z).isPassable()) return;
+            int y = Integer.MIN_VALUE;
+            if (w.getEnvironment() == World.Environment.NETHER) {
+                for (int yy = l.getBlockY(); yy < Math.min(120, w.getMaxHeight() - 3); yy++) {
+                    if (floor(w, x, yy, z)) {
+                        y = yy;
+                        break;
+                    }
+                }
+            } else {
+                int hy = w.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+                if (floor(w, x, hy, z)) y = hy;
+            }
+            if (y != Integer.MIN_VALUE) {
+                p.teleportAsync(new Location(w, x + 0.5, y + 1, z + 0.5, l.getYaw(), l.getPitch()));
+            }
+        }, 15L);
     }
 
     private boolean floor(World w, int x, int y, int z) {

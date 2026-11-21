@@ -98,7 +98,10 @@ public final class Players {
         return id.toString().substring(0, 8);
     }
 
-    /** Like resolve, but only online or already-known names. Never calls Mojang (safe for normal players' commands). */
+    /**
+     * Like resolve, but only online players, remembered names, or anyone who ever joined this server
+     * (even before the plugin was installed). Never calls Mojang (safe for normal players' commands).
+     */
     public void resolveKnown(String input, Consumer<Resolved> cb) {
         Player on = Bukkit.getPlayerExact(input);
         if (on != null) {
@@ -111,7 +114,34 @@ public final class Players {
         if (cached == null && !prefix.isEmpty() && !input.startsWith(prefix)) {
             cached = byName.get((prefix + input).toLowerCase());
         }
+        if (cached == null) cached = playedBefore(input, prefix);
         cb.accept(cached);
+    }
+
+    /** Looks through the server's player data for someone who joined before. Main thread only. */
+    private Resolved playedBefore(String input, String prefix) {
+        for (OfflinePlayer o : Bukkit.getOfflinePlayers()) {
+            String n = o.getName();
+            if (n == null) continue;
+            if (n.equalsIgnoreCase(input) || (!prefix.isEmpty() && n.equalsIgnoreCase(prefix + input))) {
+                Resolved r = new Resolved(o.getUniqueId(), n);
+                byName.put(n.toLowerCase(), r);
+                return r;
+            }
+        }
+        return null;
+    }
+
+    /** Everyone who ever joined (remembered names + the server's player data), sorted by name. Main thread only. */
+    public java.util.List<Resolved> allKnown() {
+        Map<UUID, Resolved> all = new java.util.HashMap<>();
+        for (Resolved r : byName.values()) all.put(r.id(), r);
+        for (OfflinePlayer o : Bukkit.getOfflinePlayers()) {
+            if (o.getName() != null) all.putIfAbsent(o.getUniqueId(), new Resolved(o.getUniqueId(), o.getName()));
+        }
+        java.util.List<Resolved> list = new java.util.ArrayList<>(all.values());
+        list.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
+        return list;
     }
 
     /** Calls cb on the main thread; null means the player could not be found. */

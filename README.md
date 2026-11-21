@@ -31,7 +31,7 @@ The plugin is now a Paper plugin (paper-plugin.yml). Commands are registered in 
 
 ## Economy, Shop, Settings
 - economy.enabled in config.yml turns the economy on/off. Needs Vault so EconomyShopGUI uses it.
-- /balance /pay /baltop /eco give|take|set, /settings (night vision, accept teleport requests), /menu
+- /balance /pay /baltop /eco give|take|set, /settings (night vision, TPA and TPA Here switches), /menu
 - Shop and Sell buttons run EconomyShopGUI's /shop and /sellgui. Auction button runs another plugin's command (default: ah).
 - tpa.* in config: enable/disable /tpa and /tpahere and set a minimum playtime.
 - homes.default-limit + homes.group-limits (LuckPerms group names) for free and VIP homes.
@@ -63,6 +63,25 @@ Setup: docs/DISCORD-SETUP.md (the bot runs inside the plugin, built with JDA).
 
 ## Network mode (Velocity)
 network.* in config.yml, setup in docs/NETWORK-SETUP.md. Uses MySQL/MariaDB (HikariCP + MariaDB driver are bundled).
+
+## Economy log (Discord)
+Put your channel ID in discord.logs.economy-channel-id (or the default channel-id), then /smpcore reload and /smpcore testlog.
+Logged: /eco give/take/set (always), every /pay, shop buys and sells through Vault (EconomyShopGUI, with the plugin name; fast sell-all moves are grouped into one line), RTP prices/refunds, link rewards.
+Switches: economy.log.* in config.yml. Also written to economy-log.txt.
+
+## Combat timer
+combat.* in config.yml. A fight (player vs player, or mobs too with pvp-only: false) blocks DiamondCraft commands, menu buttons and teleports for combat.seconds (default 20).
+combat.allowed-commands (staff tools) still work. combat.extra-blocked-commands can block other plugins' commands (shop, spawn...). Permission smpcore.combat.bypass ignores combat.
+Placeholders: %diamondcraft_combat% (Yes/No), %diamondcraft_combat_seconds%.
+
+## Homes: names and privacy
+"Set new home here" in the Homes menu asks for a name (Java dialog, Bedrock form, or chat on old versions). Each home has a Rename button. Coordinates are never shown.
+
+## Settings: TPA switches
+Settings has two separate buttons: accept TPA requests and accept TPA Here requests (a button is hidden when that command is disabled in tpa.*). Placeholders: %diamondcraft_tpa_requests% and %diamondcraft_tpahere_requests%.
+
+## Paying offline players
+/pay <name> <amount> works for anyone who ever joined (even before the plugin was installed). The Pay menu has "All players (also offline)" (paged) and "Search a player by name".
 
 ## Security notes
 - staff.protected (config): names/UUIDs staff can never punish. OPs are protected from non-OP staff. smpcore.punish.exempt also protects.

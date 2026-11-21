@@ -69,7 +69,7 @@ public final class TpaManager {
                 return false;
             }
         }
-        if (!plugin.settings.acceptsTpa(toId) && !from.hasPermission("smpcore.bypass.tpablock")) {
+        if (!plugin.settings.accepts(toId, here) && !from.hasPermission("smpcore.bypass.tpablock")) {
             m.send(from, "tpa-blocked", "player", plugin.players.nameFor(toId));
             return false;
         }

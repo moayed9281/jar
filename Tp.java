@@ -37,6 +37,11 @@ public final class Tp {
 
     /** Standing-still countdown (teleport.delay), then runs "after". */
     public void countdown(Player p, Runnable after, Runnable onCancel) {
+        if (plugin.combat.restricted(p)) {
+            p.sendMessage(plugin.msg.prefixed("combat-blocked", "seconds", String.valueOf(plugin.combat.remaining(p))));
+            if (onCancel != null) onCancel.run();
+            return;
+        }
         int delay = plugin.getConfig().getInt("teleport.delay", 3);
         if (delay <= 0 || p.hasPermission("smpcore.bypass.delay")) {
             after.run();
@@ -57,6 +62,13 @@ public final class Tp {
             public void run() {
                 if (!p.isOnline()) {
                     active.remove(p.getUniqueId());
+                    cancel();
+                    if (onCancel != null) onCancel.run();
+                    return;
+                }
+                if (plugin.combat.restricted(p)) {
+                    active.remove(p.getUniqueId());
+                    plugin.msg.send(p, "combat-tp-cancelled");
                     cancel();
                     if (onCancel != null) onCancel.run();
                     return;
