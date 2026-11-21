@@ -241,7 +241,9 @@ public final class DiscordLink extends ListenerAdapter {
                 case "profile" -> discordProfile(e);
                 default -> { }
             }
+            plugin.cmdlog.external(e.getUser().getName() + " (Discord)", "/" + e.getName(), true, "used");
         } catch (Exception ex) {
+            plugin.cmdlog.external(e.getUser().getName() + " (Discord)", "/" + e.getName(), false, "ERROR " + ex);
             plugin.getLogger().warning("Discord command error: " + ex);
         }
     }
@@ -622,12 +624,21 @@ public final class DiscordLink extends ListenerAdapter {
         if (!ready()) return 0;
         java.util.Set<String> seen = new java.util.HashSet<>();
         int n = 0;
-        for (String t : new String[]{"punishments", "economy", "links"}) {
+        for (String t : new String[]{"punishments", "economy", "links", "commands"}) {
             String id = channelId(t);
             if (id.isEmpty() || !seen.add(id)) continue;
             if (sendEmbed(t, new EmbedBuilder().setTitle("Test log")
                     .setDescription("The DiamondCraft log channel works.").setColor(0x55FFFF))) n++;
         }
         return n;
+    }
+
+    public void logCommand(String who, String line, boolean ok, String result) {
+        if (!ready() || !plugin.getConfig().getBoolean("command-log.discord", true)) return;
+        sendEmbed("commands", new EmbedBuilder().setTitle(ok ? "Command OK" : "Command FAILED")
+                .setColor(ok ? 0x55FF55 : 0xFF5555)
+                .addField("Who", safe(who), true).addField("Command", safe(line), false)
+                .addField("Result", safe(result), false)
+                .setFooter(plugin.serverName()).setTimestamp(Instant.now()));
     }
 }

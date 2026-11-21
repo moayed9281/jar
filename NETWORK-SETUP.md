@@ -5,6 +5,7 @@ money, homes (with the server they are on), bans/timeouts/kicks + history + IDs,
 Discord links, player names, and /tpa /tpahere between servers.
 
 ## 1. Create the database
+Supported: MariaDB, MySQL, PostgreSQL (set network.database.type) and SQLite (a file on one server only, not shared).
 Panel -> your server -> Databases -> Create database. Note host, port, database name, user, password.
 All servers must be able to reach this database.
 

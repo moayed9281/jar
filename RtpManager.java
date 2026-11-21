@@ -277,6 +277,9 @@ public final class RtpManager {
             if (floor(w, x, hy, z)) y = hy;
         }
         if (y == Integer.MIN_VALUE) return null;
+        if (w.getEnvironment() == World.Environment.NORMAL && w.getBlockAt(x, y + 1, z).getLightFromSky() < 14) {
+            return null; // covered by blocks = cave or roof, not the surface
+        }
         Location loc = new Location(w, x + 0.5, y + 1, z + 0.5);
         return w.getWorldBorder().isInside(loc) ? loc : null;
     }

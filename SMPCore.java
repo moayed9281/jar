@@ -25,6 +25,7 @@ public final class SMPCore extends JavaPlugin {
     public StaffGui staffGui;
     public DiscordLink discord;
     public Net net;
+    public CommandLog cmdlog;
     private Object vaultProvider;
 
     @Override
@@ -41,6 +42,7 @@ public final class SMPCore extends JavaPlugin {
             }
         }
         msg = new Msg(this);
+        cmdlog = new CommandLog(this);
         homes = new HomeManager(this);
         tpa = new TpaManager(this);
         floodgate = loadFloodgate();
@@ -166,7 +168,7 @@ public final class SMPCore extends JavaPlugin {
 
     private void cmd(Cmds cmds, String name, String perm, String... aliases) {
         getServer().getCommandMap().register("diamondcraft",
-                new DynCommand(name, perm, List.of(aliases), cmds));
+                new DynCommand(this, name, perm, List.of(aliases), cmds));
     }
 
     private void registerPermissions() {

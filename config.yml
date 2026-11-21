@@ -46,6 +46,9 @@ network:
   server-name: "survival"    # EXACT name of THIS server in velocity.toml
   sync-seconds: 3            # how often servers check the database for changes
   database:
+    # mariadb, mysql, postgresql or sqlite.  sqlite = a file on THIS server only (no sharing between servers).
+    type: "mariadb"
+    file: "data.db"           # sqlite only
     host: "127.0.0.1"
     port: 3306
     name: "diamondcraft"
@@ -233,11 +236,21 @@ discord:
     punishments-channel-id: ""   # optional: bans / timeouts / kicks / unbans go here instead
     economy-channel-id: ""       # optional: /eco and big payments go here instead
     links-channel-id: ""         # optional: Discord link / unlink events go here instead
+    commands-channel-id: ""      # optional: every command (and if it worked or failed) goes here instead
   link-reward: 0             # money for linking the first time (needs economy), 0 = none
   # Console commands run ONCE per account when linking ({player} and {uuid} are filled in).
   # If the player is offline they run the next time they join. Examples:
   #   link-commands: ["give {player} diamond 5", "lp user {player} permission set cool.perk true"]
   link-commands: []
+
+# ---------------------------------------------------------------- COMMAND LOG
+# Every DiamondCraft command is logged with its result: OK, FAILED, DENIED (no permission) or ERROR.
+command-log:
+  enabled: true
+  file: true                 # plugins/DiamondCraft/logs/commands.log
+  discord: true              # post to the Discord log channel (discord.logs.*)
+  log-denied: true           # also log commands players were not allowed to use
+  exclude: []                # commands you do NOT want logged, e.g. [balance, status]
 
 # ---------------------------------------------------------------- STAFF MENU (/punish)
 # Only players with the permission smpcore.staff (OP by default) can open it.

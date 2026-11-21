@@ -136,8 +136,7 @@ public final class EconomyManager {
         if (net()) {
             double nv = bal.get(id);
             plugin.net.async(c -> {
-                try (PreparedStatement ps = c.prepareStatement("INSERT INTO dc_balance (uuid,balance,updated) VALUES (?,?,"
-                        + Net.NOW + ") ON DUPLICATE KEY UPDATE balance=VALUES(balance), updated=" + Net.NOW)) {
+                try (PreparedStatement ps = c.prepareStatement(plugin.net.dialect.balanceSet())) {
                     ps.setString(1, id.toString());
                     ps.setDouble(2, nv);
                     ps.executeUpdate();
@@ -150,8 +149,7 @@ public final class EconomyManager {
         if (!net()) return;
         double base = Math.max(0, start() + d);
         plugin.net.async(c -> {
-            try (PreparedStatement ps = c.prepareStatement("INSERT INTO dc_balance (uuid,balance,updated) VALUES (?,?,"
-                    + Net.NOW + ") ON DUPLICATE KEY UPDATE balance = GREATEST(0, balance + ?), updated=" + Net.NOW)) {
+            try (PreparedStatement ps = c.prepareStatement(plugin.net.dialect.balanceDelta())) {
                 ps.setString(1, id.toString());
                 ps.setDouble(2, base);
                 ps.setDouble(3, d);
@@ -171,8 +169,7 @@ public final class EconomyManager {
 
     private boolean withdrawNet(UUID id, double amt) {
         try (Connection c = plugin.net.conn()) {
-            try (PreparedStatement ins = c.prepareStatement("INSERT IGNORE INTO dc_balance (uuid,balance,updated) VALUES (?,?,"
-                    + Net.NOW + ")")) {
+            try (PreparedStatement ins = c.prepareStatement(plugin.net.dialect.balanceInsertIgnore())) {
                 ins.setString(1, id.toString());
                 ins.setDouble(2, start());
                 ins.executeUpdate();
@@ -279,8 +276,7 @@ public final class EconomyManager {
     /** Login (async thread): make sure the player has an account and load the newest balance. */
     public void loadBlocking(UUID id) {
         try (Connection c = plugin.net.conn()) {
-            try (PreparedStatement ps = c.prepareStatement("INSERT IGNORE INTO dc_balance (uuid,balance,updated) VALUES (?,?,"
-                    + Net.NOW + ")")) {
+            try (PreparedStatement ps = c.prepareStatement(plugin.net.dialect.balanceInsertIgnore())) {
                 ps.setString(1, id.toString());
                 ps.setDouble(2, start());
                 ps.executeUpdate();
@@ -324,8 +320,7 @@ public final class EconomyManager {
             UUID id = e.getKey();
             double v = e.getValue();
             plugin.net.async(c -> {
-                try (PreparedStatement ps = c.prepareStatement("INSERT IGNORE INTO dc_balance (uuid,balance,updated) VALUES (?,?,"
-                        + Net.NOW + ")")) {
+                try (PreparedStatement ps = c.prepareStatement(plugin.net.dialect.balanceInsertIgnore())) {
                     ps.setString(1, id.toString());
                     ps.setDouble(2, v);
                     ps.executeUpdate();
