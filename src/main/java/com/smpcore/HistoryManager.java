@@ -82,6 +82,7 @@ public final class HistoryManager {
             case BAN -> "B";
             case TIMEOUT -> "T";
             case KICK -> "K";
+            case MUTE -> "M";
         };
     }
 
@@ -108,7 +109,7 @@ public final class HistoryManager {
     /** Accepts B-12, b12, B 12. */
     public synchronized Entry get(String raw) {
         String s = raw.toUpperCase(Locale.ROOT).replace(" ", "");
-        if (s.matches("[BTK]\\d+")) s = s.charAt(0) + "-" + s.substring(1);
+        if (s.matches("[BTKM]\\d+")) s = s.charAt(0) + "-" + s.substring(1);
         return map.get(s);
     }
 

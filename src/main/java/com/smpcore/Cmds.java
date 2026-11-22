@@ -224,8 +224,8 @@ public final class Cmds implements TabExecutor {
                     msg.send(s, "usage-timeout");
                     return true;
                 }
-                final long dur = Dur.parse(a[1]);
-                if (dur <= 0) {
+                final long dur = Dur.parse(a[1]);   // 0 = permanent
+                if (dur < 0) {
                     msg.send(s, "bad-duration");
                     return true;
                 }
@@ -244,6 +244,35 @@ public final class Cmds implements TabExecutor {
                     return true;
                 }
                 plugin.punisher.lift(s, PunishManager.Type.TIMEOUT, a[0]);
+            }
+            case "mute" -> {
+                if (a.length < 2) {
+                    msg.send(s, "usage-mute");
+                    return true;
+                }
+                long dur = 0;
+                int ri = 1;
+                long d = Dur.parse(a[1]);
+                if (d >= 0) {
+                    dur = d;
+                    ri = 2;
+                }
+                final long fdur = dur;
+                final String why = reason(a, ri, "");
+                plugin.players.resolve(a[0], t -> {
+                    if (t == null) {
+                        msg.send(s, "player-unknown");
+                        return;
+                    }
+                    plugin.punisher.punish(s, PunishManager.Type.MUTE, t.id(), t.name(), fdur, why);
+                });
+            }
+            case "unmute" -> {
+                if (a.length < 1) {
+                    msg.send(s, "usage-unmute");
+                    return true;
+                }
+                plugin.punisher.lift(s, PunishManager.Type.MUTE, a[0]);
             }
             case "link" -> {
                 Player p = player(s);
@@ -451,10 +480,11 @@ public final class Cmds implements TabExecutor {
                 case "home", "delhome" -> {
                     if (s instanceof Player p) out.addAll(plugin.homes.all(p.getUniqueId()).keySet());
                 }
-                case "tpa", "tpahere", "tpaccept", "tpdeny", "ban", "kick", "timeout" ->
+                case "tpa", "tpahere", "tpaccept", "tpdeny", "ban", "kick", "timeout", "mute" ->
                         Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
                 case "unban" -> out.addAll(plugin.punish.names(PunishManager.Type.BAN));
                 case "untimeout" -> out.addAll(plugin.punish.names(PunishManager.Type.TIMEOUT));
+                case "unmute" -> out.addAll(plugin.punish.names(PunishManager.Type.MUTE));
                 case "smpcore" -> out.addAll(List.of("reload", "testlog"));
                 case "pay", "balance" -> Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
                 case "eco" -> out.addAll(List.of("give", "take", "set"));
@@ -466,7 +496,7 @@ public final class Cmds implements TabExecutor {
             }
         } else if (a.length == 2 && (cmd.equals("eco") || cmd.equals("tpfav"))) {
             Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
-        } else if (a.length == 2 && (cmd.equals("ban") || cmd.equals("timeout"))) {
+        } else if (a.length == 2 && (cmd.equals("ban") || cmd.equals("timeout") || cmd.equals("mute"))) {
             out.addAll(List.of("30m", "1h", "6h", "1d", "7d", "30d", "perm"));
         }
         if (plugin.net != null && a.length == 1 && (cmd.equals("tpa") || cmd.equals("tpahere"))) {

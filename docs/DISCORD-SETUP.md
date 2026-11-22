@@ -19,3 +19,9 @@ Players: /link in Minecraft -> code -> /link CODE in Discord. /unlink works on b
 Rewards: discord.link-reward (money) and discord.link-commands (console commands, once per account).
 If you want a linked role: put the bot's role ABOVE the linked role in Server Settings -> Roles.
 The token is a password: never post it, never commit config.yml to GitHub.
+
+## Log channels
+In config.yml under discord.logs set channel-id to a Discord channel ID (Developer Mode ON, right-click the channel, Copy Channel ID).
+The bot needs View Channel, Send Messages and Embed Links in that channel (private channel: add the bot's role to it).
+Run /smpcore reload, then /smpcore testlog. Bans, timeouts, kicks, unbans (also from other servers in network mode), /eco actions and account links are posted.
+You can use separate channels with punishments-channel-id, economy-channel-id and links-channel-id.

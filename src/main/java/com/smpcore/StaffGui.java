@@ -55,6 +55,8 @@ public final class StaffGui {
                 Material.BARRIER, () -> openList(p, "Active bans", h.active(PunishManager.Type.BAN))));
         es.add(guarded(p, "<gold>Active timeouts (" + h.activeCount(PunishManager.Type.TIMEOUT) + ")", null,
                 Material.CLOCK, () -> openList(p, "Active timeouts", h.active(PunishManager.Type.TIMEOUT))));
+        es.add(guarded(p, "<gray>Active mutes (" + h.activeCount(PunishManager.Type.MUTE) + ")", null,
+                Material.PAPER, () -> openList(p, "Active mutes", h.active(PunishManager.Type.MUTE))));
         es.add(guarded(p, "<yellow>Recent kicks", null, Material.IRON_BOOTS,
                 () -> openList(p, "Kicks", h.ofType(PunishManager.Type.KICK))));
         es.add(guarded(p, "<white>All history", null, Material.BOOK, () -> openList(p, "All history", h.all())));
@@ -66,6 +68,7 @@ public final class StaffGui {
         return switch (e.type) {
             case BAN -> "<red>";
             case TIMEOUT -> "<gold>";
+            case MUTE -> "<gray>";
             case KICK -> "<yellow>";
         };
     }
@@ -85,7 +88,8 @@ public final class StaffGui {
         for (HistoryManager.Entry e : list.subList(0, Math.min(max, list.size()))) {
             Component tip = mm("<gray>Reason: <white>" + esc(e.reason) + "\n<gray>By: <white>" + esc(e.staff));
             Material mat = e.type == PunishManager.Type.BAN ? Material.RED_CONCRETE
-                    : e.type == PunishManager.Type.TIMEOUT ? Material.ORANGE_CONCRETE : Material.YELLOW_CONCRETE;
+                    : e.type == PunishManager.Type.TIMEOUT ? Material.ORANGE_CONCRETE
+                    : e.type == PunishManager.Type.MUTE ? Material.LIGHT_GRAY_CONCRETE : Material.YELLOW_CONCRETE;
             es.add(guarded(p, icon(e) + e.id + " <white>" + esc(e.name) + " <gray>" + statusText(e), tip, mat,
                     () -> openEntry(p, e)));
         }
@@ -154,11 +158,18 @@ public final class StaffGui {
         List<String> raw = plugin.getConfig().getStringList(
                 type == PunishManager.Type.BAN ? "staff.ban-durations" : "staff.timeout-durations");
         List<Menus.Entry> es = new ArrayList<>();
+        boolean hasPerm = false;
         for (String r : raw) {
             long d = Dur.parse(r);
-            if (d < 0 || (type == PunishManager.Type.TIMEOUT && d == 0)) continue;
+            if (d < 0) continue;
+            if (d == 0) hasPerm = true;
             es.add(guarded(p, "<white>" + durText(d), null, Material.CLOCK,
                     () -> openPickReason(p, id, name, type, d, () -> openPickDuration(p, id, name, type))));
+        }
+        if (!hasPerm) {
+            // a permanent timeout is always offered, even if the configured list has no "perm"
+            es.add(guarded(p, "<white>" + durText(0), null, Material.CLOCK,
+                    () -> openPickReason(p, id, name, type, 0, () -> openPickDuration(p, id, name, type))));
         }
         plugin.menus.open(p, mm("<aqua>DiamondCraft <gray>| <gold>" + type + " " + esc(name)),
                 mm("<gray>How long?"), es, back(p, () -> openPickType(p, id, name)));
