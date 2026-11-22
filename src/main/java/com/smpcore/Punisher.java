@@ -46,6 +46,7 @@ public final class Punisher {
             case BAN -> "smpcore.ban";
             case TIMEOUT -> "smpcore.timeout";
             case KICK -> "smpcore.kick";
+            case MUTE -> "smpcore.mute";
         };
         if (!by.hasPermission(perm)) {
             m.send(by, "no-permission");
@@ -75,10 +76,6 @@ public final class Punisher {
             m.send(by, "player-not-found");
             return;
         }
-        if (type == PunishManager.Type.TIMEOUT && durMs <= 0) {
-            m.send(by, "bad-duration");
-            return;
-        }
         long until = (type == PunishManager.Type.KICK || durMs <= 0) ? 0 : System.currentTimeMillis() + durMs;
 
         if (type != PunishManager.Type.KICK) {
@@ -96,8 +93,14 @@ public final class Punisher {
         if (type != PunishManager.Type.KICK) plugin.punish.add(rec);
 
         String key = type.name().toLowerCase();
-        if (on != null) on.kick(m.screen(key, rec));
         String dur = until == 0 ? permanent() : Dur.format(durMs);
+        if (on != null) {
+            if (type == PunishManager.Type.MUTE) {
+                on.sendMessage(m.prefixed("mute-notice", "reason", reason, "duration", dur));
+            } else {
+                on.kick(m.screen(key, rec));
+            }
+        }
         m.send(by, "done-" + key, "player", name, "duration", dur);
         m.send(by, "punish-id", "id", e.id);
         if (plugin.getConfig().getBoolean("punishments.broadcast", true)) {
@@ -108,20 +111,36 @@ public final class Punisher {
                 + dur + ": " + reason);
     }
 
-    /** Unban / remove timeout by typed name. */
+    private static String liftPerm(PunishManager.Type t) {
+        return t == PunishManager.Type.BAN ? "smpcore.unban" : t == PunishManager.Type.MUTE ? "smpcore.mute" : "smpcore.timeout";
+    }
+
+    private static String doneKey(PunishManager.Type t) {
+        return t == PunishManager.Type.BAN ? "done-unban" : t == PunishManager.Type.MUTE ? "done-unmute" : "done-untimeout";
+    }
+
+    private void tellUnmuted(PunishManager.Type t, UUID id) {
+        if (t != PunishManager.Type.MUTE) return;
+        Player p = Bukkit.getPlayer(id);
+        if (p != null) p.sendMessage(plugin.msg.prefixed("unmute-notice"));
+    }
+
+    /** Unban / remove timeout / unmute by typed name. */
     public void lift(CommandSender by, PunishManager.Type type, String input) {
         Msg m = plugin.msg;
-        String perm = type == PunishManager.Type.BAN ? "smpcore.unban" : "smpcore.timeout";
+        String perm = liftPerm(type);
         if (!by.hasPermission(perm)) {
             m.send(by, "no-permission");
             return;
         }
-        String doneKey = type == PunishManager.Type.BAN ? "done-unban" : "done-untimeout";
-        String missKey = type == PunishManager.Type.BAN ? "not-banned" : "not-timed-out";
+        String doneKey = doneKey(type);
+        String missKey = type == PunishManager.Type.BAN ? "not-banned"
+                : type == PunishManager.Type.MUTE ? "not-muted" : "not-timed-out";
         PunishManager.Rec removed = plugin.punish.removeByName(input, type);
         if (removed != null) {
             plugin.history.liftActiveById(removed.id(), type, by.getName());
             m.send(by, doneKey, "player", removed.name());
+            tellUnmuted(type, removed.id());
             plugin.getLogger().info("[STAFF] " + by.getName() + " lifted " + type + " of " + input);
             return;
         }
@@ -129,6 +148,7 @@ public final class Punisher {
             if (t != null && plugin.punish.remove(t.id(), type)) {
                 plugin.history.liftActiveById(t.id(), type, by.getName());
                 m.send(by, doneKey, "player", t.name());
+                tellUnmuted(type, t.id());
                 plugin.getLogger().info("[STAFF] " + by.getName() + " lifted " + type + " of " + t.name());
             } else {
                 m.send(by, missKey);
@@ -139,7 +159,7 @@ public final class Punisher {
     /** Lift from the menu (one specific entry). */
     public void liftEntry(CommandSender by, HistoryManager.Entry e) {
         Msg m = plugin.msg;
-        String perm = e.type == PunishManager.Type.BAN ? "smpcore.unban" : "smpcore.timeout";
+        String perm = liftPerm(e.type);
         if (!by.hasPermission(perm)) {
             m.send(by, "no-permission");
             return;
@@ -150,7 +170,8 @@ public final class Punisher {
         }
         plugin.punish.remove(e.uuid, e.type);
         plugin.history.lift(e, by.getName());
-        m.send(by, e.type == PunishManager.Type.BAN ? "done-unban" : "done-untimeout", "player", e.name);
+        m.send(by, doneKey(e.type), "player", e.name);
+        tellUnmuted(e.type, e.uuid);
         plugin.getLogger().info("[STAFF] " + by.getName() + " lifted " + e.id + " (" + e.name + ")");
     }
 

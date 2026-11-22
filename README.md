@@ -83,6 +83,10 @@ Settings has two separate buttons: accept TPA requests and accept TPA Here reque
 ## Paying offline players
 /pay <name> <amount> works for anyone who ever joined (even before the plugin was installed). The Pay menu has "All players (also offline)" (paged) and "Search a player by name".
 
+## Mute
+/mute <player> [duration] <reason> and /unmute <player> (permission smpcore.mute, OP by default). Works like /timeout: reason required, no duration = permanent, saved in the punishment history (ID starts with M-), shown in the /punish staff menu and logged to the Discord punishments channel.
+A muted player can't send chat, can't use the commands in mute.blocked-commands (msg, tell, w, r, me, say...), and with mute.hide-chat: true can't see other players' chat. Join/leave/death messages and staff broadcasts are not hidden.
+
 ## Security notes
 - staff.protected (config): names/UUIDs staff can never punish. OPs are protected from non-OP staff. smpcore.punish.exempt also protects.
 - smpcore.punish.override: allows replacing a longer ban/timeout with a shorter one (OP by default).

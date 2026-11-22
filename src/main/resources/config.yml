@@ -37,6 +37,13 @@ tpa:
   incoming-menu: true
   # permission smpcore.bypass.playtime skips the playtime rule
 
+# ---------------------------------------------------------------- MUTE
+# /mute <player> [duration] <reason>  and  /unmute <player>   (permission smpcore.mute, OP by default)
+mute:
+  hide-chat: true            # muted players also can't SEE other players' chat
+  # Commands a muted player can't use (private messages, /me ...)
+  blocked-commands: [msg, tell, w, whisper, t, r, reply, me, say, teammsg, tm]
+
 # ---------------------------------------------------------------- COMBAT TIMER
 # After a fight, DiamondCraft commands, menu buttons and teleports are blocked for `seconds`.
 # Dying or leaving ends it. Players with permission smpcore.combat.bypass ignore all of this.
@@ -401,7 +408,7 @@ messages:
   usage-ban: "<red>/ban <player> [duration] <reason>  (a reason is required)"
   usage-unban: "<red>/unban <player>"
   usage-kick: "<red>/kick <player> <reason>  (a reason is required)"
-  usage-timeout: "<red>/timeout <player> <duration> <reason>  (a reason is required)"
+  usage-timeout: "<red>/timeout <player> <duration|perm> <reason>  (a reason is required)"
   usage-untimeout: "<red>/untimeout <player>"
   not-banned: "<red>That player is not banned."
   not-timed-out: "<red>That player is not in timeout."
@@ -413,6 +420,15 @@ messages:
   broadcast-ban: "<red>{player} was banned by {staff}. <gray>Reason: {reason} ({duration})"
   broadcast-kick: "<red>{player} was kicked by {staff}. <gray>Reason: {reason}"
   broadcast-timeout: "<gold>{player} was timed out by {staff} for {duration}. <gray>Reason: {reason}"
+  usage-mute: "<red>/mute <player> [duration] <reason>  (a reason is required)"
+  usage-unmute: "<red>/unmute <player>"
+  not-muted: "<red>That player is not muted."
+  done-mute: "<green>Muted <yellow>{player}</yellow> for {duration}."
+  done-unmute: "<green>Unmuted <yellow>{player}</yellow>."
+  broadcast-mute: "<gold>{player} was muted by {staff} for {duration}. <gray>Reason: {reason}"
+  mute-notice: "<red>You were muted for {duration}. <gray>Reason: {reason}"
+  unmute-notice: "<green>You were unmuted. You can chat again."
+  mute-blocked: "<red>You are muted ({duration} left). <gray>Reason: {reason}"
   fav-added: "<green>Added <yellow>{player}</yellow> to your favorites."
   fav-removed: "<yellow>{player}</yellow> removed from your favorites."
   fav-already: "<red>{player} is already in your favorites."
