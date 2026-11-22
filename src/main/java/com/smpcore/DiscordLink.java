@@ -574,7 +574,7 @@ public final class DiscordLink extends ListenerAdapter {
         String title;
         int color;
         if (lifted) {
-            title = e.type == PunishManager.Type.BAN ? "Unban" : "Timeout removed";
+            title = e.type == PunishManager.Type.BAN ? "Unban" : e.type == PunishManager.Type.MUTE ? "Unmute" : "Timeout removed";
             color = 0x55FF55;
         } else {
             switch (e.type) {
@@ -585,6 +585,10 @@ public final class DiscordLink extends ListenerAdapter {
                 case TIMEOUT -> {
                     title = "Timeout";
                     color = 0xFFAA00;
+                }
+                case MUTE -> {
+                    title = "Mute";
+                    color = 0xAAAAAA;
                 }
                 default -> {
                     title = "Kick";

@@ -16,7 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class PunishManager {
-    public enum Type { BAN, TIMEOUT, KICK }
+    public enum Type { BAN, TIMEOUT, KICK, MUTE }
 
     public record Rec(Type type, UUID id, String name, long until, String reason, String staff, String punishId) { }
 
@@ -110,6 +110,15 @@ public final class PunishManager {
         return only;
     }
 
+    /** Is at least one record of this type active right now? */
+    public boolean anyActive(Type t) {
+        long now = System.currentTimeMillis();
+        for (Rec r : map.values()) {
+            if (r.type() == t && (r.until() == 0 || r.until() > now)) return true;
+        }
+        return false;
+    }
+
     public List<String> names(Type t) {
         List<String> out = new ArrayList<>();
         long now = System.currentTimeMillis();
@@ -146,7 +155,7 @@ public final class PunishManager {
 
     /** Login (async thread): read the newest ban/timeout of this player straight from the database. */
     public void refresh(UUID id) {
-        for (Type t : new Type[]{Type.BAN, Type.TIMEOUT}) {
+        for (Type t : new Type[]{Type.BAN, Type.TIMEOUT, Type.MUTE}) {
             String k = key(id, t);
             try {
                 String v = plugin.net.read("punish", k);

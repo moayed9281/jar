@@ -32,6 +32,7 @@ public final class RtpManager {
     private final Set<UUID> searching = new LinkedHashSet<>();
     private final LinkedHashSet<UUID> queue = new LinkedHashSet<>();
     private BukkitTask queueTask;
+    private final Map<UUID, Location> matchStart = new HashMap<>();
     private boolean matching;
 
     public RtpManager(SMPCore plugin) {
@@ -202,16 +203,38 @@ public final class RtpManager {
         if (matching || queue.size() < queueNeeded()) return;
         matching = true;
         long delay = Math.max(0, plugin.getConfig().getLong("rtp.queue.match-delay", 3));
+        matchStart.clear();
         for (UUID id : queue) {
             Player q = Bukkit.getPlayer(id);
-            if (q != null) plugin.msg.send(q, "rtpq-found", "seconds", String.valueOf(delay));
+            if (q == null) continue;
+            matchStart.put(id, q.getLocation());
+            plugin.msg.send(q, "rtpq-found", "seconds", String.valueOf(delay));
         }
         Bukkit.getScheduler().runTaskLater(plugin, this::runMatch, delay * 20L);
+    }
+
+    /** Moved since the match was found (same rule as teleport.cancel-on-move for /home, /tpa ...). */
+    private boolean moved(Player q) {
+        if (!plugin.getConfig().getBoolean("teleport.cancel-on-move", true) || q.hasPermission("smpcore.bypass.delay")) {
+            return false;
+        }
+        Location s = matchStart.get(q.getUniqueId());
+        if (s == null) return false;
+        Location n = q.getLocation();
+        return n.getWorld() != s.getWorld() || n.distanceSquared(s) > 0.25;
     }
 
     private void runMatch() {
         matching = false;
         queue.removeIf(id -> Bukkit.getPlayer(id) == null);
+        queue.removeIf(id -> {
+            Player q = Bukkit.getPlayer(id);
+            if (q != null && moved(q)) {
+                plugin.msg.send(q, "tp-cancelled");
+                return true;
+            }
+            return false;
+        });
         List<Player> group = new ArrayList<>();
         for (UUID id : queue) {
             Player q = Bukkit.getPlayer(id);
@@ -231,6 +254,10 @@ public final class RtpManager {
         find(world, w, loc -> {
             for (Player q : group) {
                 if (!q.isOnline()) continue;
+                if (moved(q)) {
+                    plugin.msg.send(q, "tp-cancelled");
+                    continue;
+                }
                 if (plugin.combat.restricted(q)) {
                     q.sendMessage(plugin.msg.prefixed("combat-blocked", "seconds", String.valueOf(plugin.combat.remaining(q))));
                     continue;

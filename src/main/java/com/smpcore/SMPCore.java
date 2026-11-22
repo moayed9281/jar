@@ -88,6 +88,8 @@ public final class SMPCore extends JavaPlugin {
         cmd(cmds, "kick", "smpcore.kick");
         cmd(cmds, "timeout", "smpcore.timeout");
         cmd(cmds, "untimeout", "smpcore.timeout");
+        cmd(cmds, "mute", "smpcore.mute");
+        cmd(cmds, "unmute", "smpcore.mute");
         cmd(cmds, "balance", "smpcore.economy", "bal", "money");
         cmd(cmds, "pay", "smpcore.economy");
         cmd(cmds, "baltop", "smpcore.economy");
@@ -104,6 +106,7 @@ public final class SMPCore extends JavaPlugin {
         cmd(cmds, "rtpq", "smpcore.rtpq", "rtpqueue");
         cmd(cmds, "smpcore", "smpcore.reload", "diamondcraft");
         getServer().getPluginManager().registerEvents(new Listeners(this), this);
+        getServer().getPluginManager().registerEvents(new MuteListener(this), this);
         getLogger().info("Menus: " + menus.getClass().getSimpleName());
         applyEconomy();
         getServer().getScheduler().runTaskTimer(this,
@@ -178,7 +181,7 @@ public final class SMPCore extends JavaPlugin {
         Object[][] perms = {
                 {"smpcore.home", PermissionDefault.TRUE}, {"smpcore.tpa", PermissionDefault.TRUE},
                 {"smpcore.ban", PermissionDefault.OP}, {"smpcore.unban", PermissionDefault.OP},
-                {"smpcore.kick", PermissionDefault.OP}, {"smpcore.timeout", PermissionDefault.OP},
+                {"smpcore.kick", PermissionDefault.OP}, {"smpcore.timeout", PermissionDefault.OP}, {"smpcore.mute", PermissionDefault.OP},
                 {"smpcore.reload", PermissionDefault.OP}, {"smpcore.bypass.delay", PermissionDefault.OP},
                 {"smpcore.bypass.cooldown", PermissionDefault.OP},
                 {"smpcore.bypass.playtime", PermissionDefault.OP}, {"smpcore.bypass.tpablock", PermissionDefault.OP},
