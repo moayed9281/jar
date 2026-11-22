@@ -8,9 +8,63 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Sync root Java uploads into Maven sources
+        if: github.ref_type == 'branch' && github.actor != 'github-actions[bot]'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_dir = Path("src/main/java/com/smpcore")
+          candidates = sorted(Path(".").glob("*.java"))
+          plan = []
+          conflicts = []
+
+          for root_file in candidates:
+              content = root_file.read_bytes()
+              try:
+                  text = content.decode("utf-8")
+              except UnicodeDecodeError:
+                  conflicts.append(f"{root_file}: file is not UTF-8")
+                  continue
+              if "package com.smpcore;" not in text:
+                  conflicts.append(f"{root_file}: expected package com.smpcore;")
+                  continue
+
+              target = source_dir / root_file.name
+              if target.exists() and target.read_bytes() != content:
+                  conflicts.append(f"{root_file} differs from {target}")
+              else:
+                  plan.append((root_file, target, content))
+
+          if conflicts:
+              raise SystemExit(
+                  "Root Java sync stopped to avoid overwriting different Maven code:\n"
+                  + "\n".join(conflicts)
+                  + "\nResolve these files manually, then push again."
+              )
+
+          for root_file, target, content in plan:
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(content)
+              root_file.unlink()
+              print(f"Moved {root_file} to {target}")
+          PY
+
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A -- '*.java'
+            git commit -m "Sync uploaded Java sources into Maven layout"
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}"
+          fi
 
       - name: Set up Java
         uses: actions/setup-java@v4
