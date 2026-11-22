@@ -25,6 +25,8 @@ public final class SMPCore extends JavaPlugin {
     public StaffGui staffGui;
     public DiscordLink discord;
     public Net net;
+    public CommandLog cmdlog;
+    public CombatManager combat;
     private Object vaultProvider;
 
     @Override
@@ -41,6 +43,9 @@ public final class SMPCore extends JavaPlugin {
             }
         }
         msg = new Msg(this);
+        cmdlog = new CommandLog(this);
+        combat = new CombatManager(this);
+        getServer().getPluginManager().registerEvents(combat, this);
         homes = new HomeManager(this);
         tpa = new TpaManager(this);
         floodgate = loadFloodgate();
@@ -166,7 +171,7 @@ public final class SMPCore extends JavaPlugin {
 
     private void cmd(Cmds cmds, String name, String perm, String... aliases) {
         getServer().getCommandMap().register("diamondcraft",
-                new DynCommand(name, perm, List.of(aliases), cmds));
+                new DynCommand(this, name, perm, List.of(aliases), cmds));
     }
 
     private void registerPermissions() {
@@ -181,7 +186,7 @@ public final class SMPCore extends JavaPlugin {
                 {"smpcore.settings", PermissionDefault.TRUE}, {"smpcore.settings.nightvision", PermissionDefault.TRUE},
                 {"smpcore.menu", PermissionDefault.TRUE}, {"smpcore.status", PermissionDefault.TRUE},
                 {"smpcore.staff", PermissionDefault.OP}, {"smpcore.punish.override", PermissionDefault.OP}, {"smpcore.link", PermissionDefault.TRUE}, {"smpcore.punish.exempt", PermissionDefault.FALSE},
-                {"smpcore.rtp", PermissionDefault.TRUE}, {"smpcore.rtpq", PermissionDefault.TRUE}, {"smpcore.homes.unlimited", PermissionDefault.FALSE}
+                {"smpcore.combat.bypass", PermissionDefault.FALSE}, {"smpcore.rtp", PermissionDefault.TRUE}, {"smpcore.rtpq", PermissionDefault.TRUE}, {"smpcore.homes.unlimited", PermissionDefault.FALSE}
         };
         for (Object[] x : perms) {
             try {

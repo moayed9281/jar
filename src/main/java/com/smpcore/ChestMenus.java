@@ -31,6 +31,9 @@ public final class ChestMenus implements Menus, Listener {
         }
     }
 
+    private record Prompt(java.util.function.Consumer<String> ok, Runnable back) { }
+
+    private final java.util.Map<java.util.UUID, Prompt> prompts = new java.util.concurrent.ConcurrentHashMap<>();
     private final SMPCore plugin;
 
     public ChestMenus(SMPCore plugin) {
@@ -65,6 +68,36 @@ public final class ChestMenus implements Menus, Listener {
         p.openInventory(inv);
     }
 
+    @Override
+    public void input(Player p, Component title, Component label, String initial, int maxLength,
+                      java.util.function.Consumer<String> onSubmit, Runnable onBack) {
+        p.closeInventory();
+        prompts.put(p.getUniqueId(), new Prompt(onSubmit, onBack));
+        p.sendMessage(plugin.msg.prefixed("input-chat").append(label));
+    }
+
+    @EventHandler
+    public void onChat(io.papermc.paper.event.player.AsyncChatEvent e) {
+        Prompt pr = prompts.remove(e.getPlayer().getUniqueId());
+        if (pr == null) return;
+        e.setCancelled(true);
+        Player p = e.getPlayer();
+        String text = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(e.message()).trim();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (text.equalsIgnoreCase("cancel")) {
+                if (pr.back() != null) pr.back().run();
+            } else {
+                plugin.combat.guard(p, () -> pr.ok().accept(text)).run();
+            }
+        });
+    }
+
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+        prompts.remove(e.getPlayer().getUniqueId());
+    }
+
     private ItemStack item(Entry e) {
         org.bukkit.Material mat = e.icon() == null || e.icon().isAir() ? org.bukkit.Material.PAPER : e.icon();
         ItemStack it = new ItemStack(mat);
@@ -82,7 +115,7 @@ public final class ChestMenus implements Menus, Listener {
             Runnable r = h.actions.get(e.getRawSlot());
             if (r != null && e.getWhoClicked() instanceof Player pl && pl.getUniqueId().equals(h.owner)) {
                 pl.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, r);
+                Bukkit.getScheduler().runTask(plugin, plugin.combat.guard(pl, r));
             }
         }
     }

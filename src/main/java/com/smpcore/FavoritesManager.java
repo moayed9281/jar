@@ -79,7 +79,7 @@ public final class FavoritesManager {
 
     private String json(UUID owner) {
         com.google.gson.JsonArray a = new com.google.gson.JsonArray();
-        for (UUID u : map.getOrDefault(owner, new LinkedHashSet<>())) a.add(u.toString());
+        for (UUID u : map.getOrDefault(owner, new LinkedHashSet<>())) a.add(new com.google.gson.JsonPrimitive(u.toString()));
         return a.toString();
     }
 
@@ -95,7 +95,7 @@ public final class FavoritesManager {
             return;
         }
         LinkedHashSet<UUID> set = new LinkedHashSet<>();
-        for (com.google.gson.JsonElement e : com.google.gson.JsonParser.parseString(value).getAsJsonArray()) {
+        for (com.google.gson.JsonElement e : new com.google.gson.JsonParser().parse(value).getAsJsonArray()) {
             set.add(UUID.fromString(e.getAsString()));
         }
         map.put(owner, set);

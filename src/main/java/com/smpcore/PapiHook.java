@@ -80,6 +80,9 @@ final class PapiHook extends PlaceholderExpansion {
                 case "linked" -> plugin.discord.get(id) != null ? "Yes" : "No";
                 case "nightvision" -> plugin.settings.nightVision(id) ? "On" : "Off";
                 case "tpa_requests" -> plugin.settings.acceptsTpa(id) ? "On" : "Off";
+                case "tpahere_requests" -> plugin.settings.acceptsTpaHere(id) ? "On" : "Off";
+                case "combat" -> on != null && plugin.combat.inCombat(on) ? "Yes" : "No";
+                case "combat_seconds" -> on == null ? "0" : String.valueOf(plugin.combat.remaining(on));
                 default -> null;
             };
         } catch (Throwable t) {

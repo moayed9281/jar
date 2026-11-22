@@ -33,9 +33,10 @@ public final class Gui {
         for (Map.Entry<String, HomeManager.Home> en : homes.entrySet()) {
             String name = en.getKey();
             HomeManager.Home h = en.getValue();
-            String where = h.world() + " " + (int) h.x() + ", " + (int) h.y() + ", " + (int) h.z();
-            if (!h.server().equalsIgnoreCase(plugin.serverName())) where += " (" + h.server() + ")";
-            Component tip = m.mm("<gray>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(where));
+            // coordinates are never shown; only the server name when the home is on another server
+            Component tip = h.server().equalsIgnoreCase(plugin.serverName()) ? null
+                    : m.mm("<gray>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                    .escapeTags("(" + h.server() + ")"));
             entries.add(new Menus.Entry(m.text("menus.home-button", "home", name), tip, Material.RED_BED,
                     () -> openHome(p, name)));
         }
@@ -44,14 +45,67 @@ public final class Gui {
                 String n = "home";
                 int i = 2;
                 while (homes.containsKey(n)) n = "home" + i++;
-                plugin.homes.set(id, n, p.getLocation());
-                m.send(p, "home-set", "home", n);
-                openHomes(p);
+                // ask for a name (the suggestion is used when the field is left empty)
+                final String suggestion = n;
+                plugin.menus.input(p, m.text("menus.sethome-title"), m.text("menus.home-name-label"), suggestion,
+                        plugin.getConfig().getInt("homes.max-name-length", 16),
+                        text -> setHomeNamed(p, text.isBlank() ? suggestion : text), () -> openHomes(p));
             }));
         }
         Component title = m.text("menus.home-title", "used", String.valueOf(homes.size()),
                 "limit", plugin.homes.limitText(p));
         plugin.menus.open(p, title, m.text("menus.home-info"), entries, null);
+    }
+
+    /** Lowercase, spaces become _, only letters, numbers, - and _ . Returns null when the name is not allowed. */
+    private String cleanHomeName(String raw) {
+        String n = raw.trim().toLowerCase().replace(' ', '_');
+        int max = plugin.getConfig().getInt("homes.max-name-length", 16);
+        return n.matches("[a-z0-9_-]+") && n.length() <= max ? n : null;
+    }
+
+    private void setHomeNamed(Player p, String raw) {
+        Msg m = plugin.msg;
+        String name = cleanHomeName(raw);
+        if (name == null) {
+            m.send(p, "home-invalid-name", "max", String.valueOf(plugin.getConfig().getInt("homes.max-name-length", 16)));
+            openHomes(p);
+            return;
+        }
+        UUID id = p.getUniqueId();
+        Map<String, HomeManager.Home> h = plugin.homes.all(id);
+        if (!h.containsKey(name) && h.size() >= plugin.homes.limit(p)) {
+            m.send(p, "home-limit", "limit", plugin.homes.limitText(p));
+            openHomes(p);
+            return;
+        }
+        plugin.homes.set(id, name, p.getLocation());
+        m.send(p, "home-set", "home", name);
+        openHomes(p);
+    }
+
+    private void renameHome(Player p, String oldName, String raw) {
+        Msg m = plugin.msg;
+        String name = cleanHomeName(raw);
+        if (name == null) {
+            m.send(p, "home-invalid-name", "max", String.valueOf(plugin.getConfig().getInt("homes.max-name-length", 16)));
+            openHome(p, oldName);
+            return;
+        }
+        switch (plugin.homes.rename(p.getUniqueId(), oldName, name)) {
+            case 1 -> {
+                m.send(p, "home-not-found", "home", oldName);
+                openHomes(p);
+            }
+            case 2 -> {
+                m.send(p, "home-exists", "home", name);
+                openHome(p, oldName);
+            }
+            default -> {
+                m.send(p, "home-renamed", "old", oldName, "home", name);
+                openHomes(p);
+            }
+        }
     }
 
     public void openHome(Player p, String name) {
@@ -60,6 +114,10 @@ public final class Gui {
         List<Menus.Entry> entries = new ArrayList<>();
         entries.add(new Menus.Entry(m.text("menus.teleport-button"), null, Material.ENDER_PEARL,
                 () -> teleportHome(p, name)));
+        entries.add(new Menus.Entry(m.text("menus.rename-button"), null, Material.NAME_TAG,
+                () -> plugin.menus.input(p, m.text("menus.rename-title", "home", name), m.text("menus.home-name-label"),
+                        name, plugin.getConfig().getInt("homes.max-name-length", 16),
+                        text -> renameHome(p, name, text.isBlank() ? name : text), () -> openHome(p, name))));
         entries.add(new Menus.Entry(m.text("menus.delete-button"), null, Material.BARRIER, () -> {
             plugin.homes.delete(id, name);
             m.send(p, "home-deleted", "home", name);
@@ -282,11 +340,20 @@ public final class Gui {
                 openSettings(p);
             }));
         }
-        es.add(new Menus.Entry(state("menus.tpa-requests-button", plugin.settings.acceptsTpa(id)), null,
-                Material.ENDER_PEARL, () -> {
-            plugin.settings.toggleTpa(id);
-            openSettings(p);
-        }));
+        if (plugin.getConfig().getBoolean("tpa.tpa-enabled", true)) {
+            es.add(new Menus.Entry(state("menus.settings-tpa-button", plugin.settings.acceptsTpa(id)), null,
+                    Material.ENDER_PEARL, () -> {
+                plugin.settings.toggleTpa(id);
+                openSettings(p);
+            }));
+        }
+        if (plugin.getConfig().getBoolean("tpa.tpahere-enabled", true)) {
+            es.add(new Menus.Entry(state("menus.settings-tpahere-button", plugin.settings.acceptsTpaHere(id)), null,
+                    Material.ENDER_EYE, () -> {
+                plugin.settings.toggleTpaHere(id);
+                openSettings(p);
+            }));
+        }
         plugin.menus.open(p, m.text("menus.settings-title"), null, es, null);
     }
 
@@ -296,13 +363,57 @@ public final class Gui {
         for (Player o : Bukkit.getOnlinePlayers()) {
             if (o.getUniqueId().equals(p.getUniqueId())) continue;
             es.add(new Menus.Entry(m.mm("<yellow>" + o.getName()), null, Material.PLAYER_HEAD,
-                    () -> openPayAmount(p, o)));
+                    () -> openPayAmount(p, o.getUniqueId(), o.getName())));
         }
-        plugin.menus.open(p, m.text("menus.pay-title"),
-                m.text(es.isEmpty() ? "menus.tpa-no-players" : "menus.pay-info"), es, null);
+        es.add(new Menus.Entry(m.text("menus.pay-all-button"), null, Material.BOOK, () -> openPayAll(p, 0)));
+        es.add(new Menus.Entry(m.text("menus.pay-search-button"), null, Material.NAME_TAG, () -> {
+            plugin.menus.input(p, m.text("menus.pay-search-title"), m.text("menus.pay-search-label"), "", 32,
+                    text -> {
+                        String q = text.trim();
+                        if (q.isEmpty()) {
+                            openPay(p);
+                            return;
+                        }
+                        plugin.players.resolveKnown(q, r -> {
+                            if (r == null) {
+                                m.send(p, "player-unknown");
+                            } else if (r.id().equals(p.getUniqueId())) {
+                                m.send(p, "pay-self");
+                            } else {
+                                openPayAmount(p, r.id(), r.name());
+                            }
+                        });
+                    }, () -> openPay(p));
+        }));
+        plugin.menus.open(p, m.text("menus.pay-title"), m.text("menus.pay-info"), es, null);
     }
 
-    public void openPayAmount(Player p, Player target) {
+    /** Everyone who ever joined the server (online or not), 28 per page. */
+    public void openPayAll(Player p, int page) {
+        Msg m = plugin.msg;
+        final int size = 28;
+        List<Players.Resolved> all = new ArrayList<>(plugin.players.allKnown());
+        all.removeIf(r -> r.id().equals(p.getUniqueId()));
+        int pages = Math.max(1, (all.size() + size - 1) / size);
+        int pg = Math.max(0, Math.min(page, pages - 1));
+        List<Menus.Entry> es = new ArrayList<>();
+        for (Players.Resolved r : all.subList(Math.min(all.size(), pg * size), Math.min(all.size(), (pg + 1) * size))) {
+            boolean on = Bukkit.getPlayer(r.id()) != null;
+            es.add(new Menus.Entry(m.mm((on ? "<green>" : "<gray>") + net.kyori.adventure.text.minimessage.MiniMessage
+                    .miniMessage().escapeTags(r.name())), null, Material.PLAYER_HEAD,
+                    () -> openPayAmount(p, r.id(), r.name())));
+        }
+        if (pg > 0) {
+            es.add(new Menus.Entry(m.text("menus.prev-button"), null, Material.ARROW, () -> openPayAll(p, pg - 1)));
+        }
+        if (pg < pages - 1) {
+            es.add(new Menus.Entry(m.text("menus.next-button"), null, Material.ARROW, () -> openPayAll(p, pg + 1)));
+        }
+        plugin.menus.open(p, m.text("menus.pay-all-title", "page", String.valueOf(pg + 1), "pages", String.valueOf(pages)),
+                all.isEmpty() ? m.text("menus.tpa-no-players") : null, es, back(() -> openPay(p)));
+    }
+
+    public void openPayAmount(Player p, UUID targetId, String targetName) {
         Msg m = plugin.msg;
         List<Double> presets = plugin.getConfig().getDoubleList("economy.pay-presets");
         if (presets.isEmpty()) presets = List.of(100.0, 1000.0, 10000.0, 100000.0);
@@ -310,9 +421,9 @@ public final class Gui {
         List<Menus.Entry> es = new ArrayList<>();
         for (double amt : presets) {
             es.add(new Menus.Entry(m.mm(btn.replace("{amount}", plugin.economy.format(amt))), null,
-                    Material.GOLD_INGOT, () -> plugin.economy.pay(p, target.getUniqueId(), target.getName(), amt)));
+                    Material.GOLD_INGOT, () -> plugin.economy.pay(p, targetId, targetName, amt)));
         }
-        plugin.menus.open(p, m.text("menus.pay-amount-title", "player", target.getName()), null, es,
+        plugin.menus.open(p, m.text("menus.pay-amount-title", "player", targetName), null, es,
                 back(() -> openPay(p)));
     }
 

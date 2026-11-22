@@ -140,6 +140,20 @@ public final class HomeManager {
         persist(id);
     }
 
+    /** 0 = renamed, 1 = no such home, 2 = a home with the new name already exists. Keeps the order. */
+    public synchronized int rename(UUID id, String from, String to) {
+        from = from.toLowerCase();
+        to = to.toLowerCase();
+        LinkedHashMap<String, Home> m = data.get(id);
+        if (m == null || !m.containsKey(from)) return 1;
+        if (!from.equals(to) && m.containsKey(to)) return 2;
+        LinkedHashMap<String, Home> n = new LinkedHashMap<>();
+        for (Map.Entry<String, Home> e : m.entrySet()) n.put(e.getKey().equals(from) ? to : e.getKey(), e.getValue());
+        data.put(id, n);
+        persist(id);
+        return 0;
+    }
+
     public synchronized boolean delete(UUID id, String name) {
         LinkedHashMap<String, Home> m = data.get(id);
         if (m == null || m.remove(name.toLowerCase()) == null) return false;
@@ -154,7 +168,7 @@ public final class HomeManager {
             data.remove(id);
             return;
         }
-        JsonObject o = JsonParser.parseString(value).getAsJsonObject();
+        JsonObject o = new JsonParser().parse(value).getAsJsonObject();
         LinkedHashMap<String, Home> m = new LinkedHashMap<>();
         for (Map.Entry<String, com.google.gson.JsonElement> e : o.entrySet()) {
             m.put(e.getKey(), Home.fromJson(e.getValue().getAsJsonObject()));

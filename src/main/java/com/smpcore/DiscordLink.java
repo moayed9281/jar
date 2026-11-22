@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.UserSnowflake;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -20,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -239,7 +241,9 @@ public final class DiscordLink extends ListenerAdapter {
                 case "profile" -> discordProfile(e);
                 default -> { }
             }
+            plugin.cmdlog.external(e.getUser().getName() + " (Discord)", "/" + e.getName(), true, "used");
         } catch (Exception ex) {
+            plugin.cmdlog.external(e.getUser().getName() + " (Discord)", "/" + e.getName(), false, "ERROR " + ex);
             plugin.getLogger().warning("Discord command error: " + ex);
         }
     }
@@ -292,6 +296,7 @@ public final class DiscordLink extends ListenerAdapter {
         }
         netPutLink(pend.uuid(), l);
         saveLater();
+        logLink(pend.mcName() + " linked with Discord account " + e.getUser().getName());
         e.reply("Linked to Minecraft account **" + pend.mcName() + "**!").setEphemeral(true).queue();
         grantRole(did);
         UUID id = pend.uuid();
@@ -315,6 +320,7 @@ public final class DiscordLink extends ListenerAdapter {
         }
         saveLater();
         netRemoveLink(id);
+        logLink(name + " was unlinked from Discord account " + e.getUser().getName());
         removeRole(did);
         e.reply("Unlinked **" + name + "**.").setEphemeral(true).queue();
         Bukkit.getScheduler().runTask(plugin, () -> {
@@ -413,6 +419,7 @@ public final class DiscordLink extends ListenerAdapter {
         double amt = plugin.getConfig().getDouble("discord.link-reward", 0);
         if (amt > 0 && plugin.economy.enabled()) {
             plugin.economy.deposit(id, amt);
+            plugin.economy.logMisc("rewards", "Discord link reward", id, amt, false);
             if (on != null) plugin.msg.send(on, "link-reward", "amount", plugin.economy.format(amt));
         }
         if (!plugin.getConfig().getStringList("discord.link-commands").isEmpty()) {
@@ -459,6 +466,7 @@ public final class DiscordLink extends ListenerAdapter {
         }
         saveLater();
         netRemoveLink(p.getUniqueId());
+        logLink(p.getName() + " unlinked their Discord account (" + l.discordName() + ")");
         removeRole(l.discordId());
         m.send(p, "unlink-done");
     }
@@ -487,7 +495,7 @@ public final class DiscordLink extends ListenerAdapter {
         String v = plugin.net.get("code", code);
         if (v == null) return null;
         try {
-            com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(v).getAsJsonObject();
+            com.google.gson.JsonObject o = new com.google.gson.JsonParser().parse(v).getAsJsonObject();
             return new Pending(UUID.fromString(o.get("u").getAsString()), o.get("n").getAsString(), o.get("x").getAsLong());
         } catch (Exception e) {
             return null;
@@ -518,7 +526,7 @@ public final class DiscordLink extends ListenerAdapter {
                 links.remove(id);
                 return;
             }
-            com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(value).getAsJsonObject();
+            com.google.gson.JsonObject o = new com.google.gson.JsonParser().parse(value).getAsJsonObject();
             links.put(id, new Link(o.get("d").getAsString(), o.get("n").getAsString(), o.get("a").getAsLong()));
         }
     }
@@ -529,5 +537,113 @@ public final class DiscordLink extends ListenerAdapter {
         }
         for (UUID id : rewarded) plugin.net.putIfAbsent("rew", id.toString(), "1");
         for (String d : rewardedDiscord) plugin.net.putIfAbsent("rewd", d, "1");
+    }
+
+    // ------------------------------------------------------------ log channels
+    /** discord.logs.<type>-channel-id, or the default discord.logs.channel-id. */
+    private String channelId(String type) {
+        var c = plugin.getConfig();
+        String id = c.getString("discord.logs." + type + "-channel-id", "").trim();
+        if (id.isEmpty()) id = c.getString("discord.logs.channel-id", "").trim();
+        return id;
+    }
+
+    private static String safe(String s) {
+        if (s == null || s.isBlank()) return "-";
+        return s.length() > 900 ? s.substring(0, 900) + "..." : s;
+    }
+
+    private boolean sendEmbed(String type, EmbedBuilder eb) {
+        JDA j = jda;
+        String id = channelId(type);
+        if (j == null || id.isEmpty()) return false;
+        TextChannel ch = j.getTextChannelById(id);
+        if (ch == null) {
+            plugin.getLogger().warning("Discord log: channel " + id
+                    + " not found (is the bot in that server, and can it see the channel?)");
+            return false;
+        }
+        ch.sendMessageEmbeds(eb.build()).queue(null,
+                err -> plugin.getLogger().warning("Discord log failed: " + err.getMessage()));
+        return true;
+    }
+
+    /** Ban / timeout / kick (lifted = false) or unban / timeout removed (lifted = true). */
+    public void logPunishment(HistoryManager.Entry e, boolean lifted) {
+        if (!ready()) return;
+        String title;
+        int color;
+        if (lifted) {
+            title = e.type == PunishManager.Type.BAN ? "Unban" : "Timeout removed";
+            color = 0x55FF55;
+        } else {
+            switch (e.type) {
+                case BAN -> {
+                    title = "Ban";
+                    color = 0xFF5555;
+                }
+                case TIMEOUT -> {
+                    title = "Timeout";
+                    color = 0xFFAA00;
+                }
+                default -> {
+                    title = "Kick";
+                    color = 0xFFFF55;
+                }
+            }
+        }
+        EmbedBuilder eb = new EmbedBuilder().setTitle(title + " | " + e.id).setColor(color)
+                .addField("Player", safe(e.name), true)
+                .addField(lifted ? "Removed by" : "Staff", safe(lifted ? e.liftedBy : e.staff), true);
+        if (!lifted) {
+            eb.addField("Reason", safe(e.reason), false);
+            if (e.type != PunishManager.Type.KICK) {
+                eb.addField("Duration", e.until == 0 ? "Permanent"
+                        : "Until <t:" + (e.until / 1000) + ":f> (<t:" + (e.until / 1000) + ":R>)", false);
+            }
+        } else {
+            eb.addField("Original reason", safe(e.reason), false);
+        }
+        eb.setFooter(plugin.serverName()).setTimestamp(Instant.now());
+        sendEmbed("punishments", eb);
+    }
+
+    public void logEconomy(String text) {
+        logEconomy("Economy", text, 0xFFD700);
+    }
+
+    public void logEconomy(String title, String text, int color) {
+        if (!ready()) return;
+        sendEmbed("economy", new EmbedBuilder().setTitle(title).setDescription(safe(text))
+                .setColor(color).setFooter(plugin.serverName()).setTimestamp(Instant.now()));
+    }
+
+    public void logLink(String text) {
+        if (!ready()) return;
+        sendEmbed("links", new EmbedBuilder().setTitle("Account link").setDescription(safe(text))
+                .setColor(0x55FFFF).setFooter(plugin.serverName()).setTimestamp(Instant.now()));
+    }
+
+    /** /smpcore testlog: posts a test message to every configured log channel. Returns how many channels got one. */
+    public int testLog() {
+        if (!ready()) return 0;
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int n = 0;
+        for (String t : new String[]{"punishments", "economy", "links", "commands"}) {
+            String id = channelId(t);
+            if (id.isEmpty() || !seen.add(id)) continue;
+            if (sendEmbed(t, new EmbedBuilder().setTitle("Test log")
+                    .setDescription("The DiamondCraft log channel works.").setColor(0x55FFFF))) n++;
+        }
+        return n;
+    }
+
+    public void logCommand(String who, String line, boolean ok, String result) {
+        if (!ready() || !plugin.getConfig().getBoolean("command-log.discord", true)) return;
+        sendEmbed("commands", new EmbedBuilder().setTitle(ok ? "Command OK" : "Command FAILED")
+                .setColor(ok ? 0x55FF55 : 0xFF5555)
+                .addField("Who", safe(who), true).addField("Command", safe(line), false)
+                .addField("Result", safe(result), false)
+                .setFooter(plugin.serverName()).setTimestamp(Instant.now()));
     }
 }

@@ -11,4 +11,8 @@ public interface Menus {
 
     /** message and back may be null. */
     void open(Player p, Component title, Component message, List<Entry> entries, Entry back);
+
+    /** Asks for a short text. onSubmit gets what was typed (may be empty); onBack runs if the player cancels (may be null). */
+    void input(Player p, Component title, Component label, String initial, int maxLength,
+               java.util.function.Consumer<String> onSubmit, Runnable onBack);
 }
