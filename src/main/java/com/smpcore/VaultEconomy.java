@@ -32,6 +32,7 @@ public final class VaultEconomy implements Economy {
         if (!em().withdraw(id, amt)) {
             return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.FAILURE, "Insufficient funds");
         }
+        em().logVault(id, true, amt, em().get(id));
         return new EconomyResponse(amt, em().get(id), EconomyResponse.ResponseType.SUCCESS, null);
     }
 
@@ -40,6 +41,7 @@ public final class VaultEconomy implements Economy {
             return new EconomyResponse(0, em().get(id), EconomyResponse.ResponseType.FAILURE, "Invalid amount");
         }
         em().deposit(id, amt);
+        if (amt > 0) em().logVault(id, false, amt, em().get(id));
         return new EconomyResponse(amt, em().get(id), EconomyResponse.ResponseType.SUCCESS, null);
     }
 

@@ -288,6 +288,10 @@ public final class Cmds implements TabExecutor {
                 if (a.length > 0 && a[0].equalsIgnoreCase("reload")) {
                     plugin.reload();
                     msg.send(s, "reloaded");
+                } else if (a.length > 0 && a[0].equalsIgnoreCase("testlog")) {
+                    int n = plugin.discord.testLog();
+                    if (n > 0) msg.send(s, "discord-testlog-ok", "count", String.valueOf(n));
+                    else msg.send(s, "discord-testlog-none");
                 }
             }
             case "balance" -> {
@@ -360,13 +364,14 @@ public final class Cmds implements TabExecutor {
                         return;
                     }
                     EconomyManager e = plugin.economy;
+                    final double before = e.get(t.id());
                     switch (sub) {
                         case "give" -> e.deposit(t.id(), amt);
                         case "take" -> e.set(t.id(), e.get(t.id()) - amt);
                         default -> e.set(t.id(), amt);
                     }
                     msg.send(s, "eco-done", "player", t.name(), "balance", e.format(e.get(t.id())));
-                    e.audit(s.getName() + " /eco " + sub + " " + t.name() + " " + amt + " -> balance " + e.get(t.id()));
+                    e.logAdmin(s.getName(), sub, t.name(), amt, before, e.get(t.id()));
                 });
             }
             case "settings" -> {
@@ -450,7 +455,7 @@ public final class Cmds implements TabExecutor {
                         Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
                 case "unban" -> out.addAll(plugin.punish.names(PunishManager.Type.BAN));
                 case "untimeout" -> out.addAll(plugin.punish.names(PunishManager.Type.TIMEOUT));
-                case "smpcore" -> out.add("reload");
+                case "smpcore" -> out.addAll(List.of("reload", "testlog"));
                 case "pay", "balance" -> Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
                 case "eco" -> out.addAll(List.of("give", "take", "set"));
                 case "tpfav" -> out.addAll(List.of("add", "remove"));

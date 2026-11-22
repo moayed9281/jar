@@ -100,6 +100,7 @@ public final class HistoryManager {
             Entry e = new Entry(id, type, uuid, name, staff, reason, System.currentTimeMillis(), until);
             map.put(e.id, e);
             persist(e);
+            plugin.discord.logPunishment(e, false);
             return e;
         }
     }
@@ -148,6 +149,7 @@ public final class HistoryManager {
         e.liftedBy = by;
         e.liftedAt = System.currentTimeMillis();
         persist(e);
+        if (!by.startsWith("(replaced")) plugin.discord.logPunishment(e, true);
     }
 
     public synchronized void liftActiveById(UUID id, PunishManager.Type t, String by) {
@@ -216,11 +218,15 @@ public final class HistoryManager {
             map.remove(key);
             return;
         }
-        JsonObject o = JsonParser.parseString(value).getAsJsonObject();
+        JsonObject o = new JsonParser().parse(value).getAsJsonObject();
         Entry ex = map.get(key);
         if (ex != null) {
+            long before = ex.liftedAt;
             ex.liftedBy = o.get("lb").getAsString();
             ex.liftedAt = o.get("la").getAsLong();
+            if (before == 0 && ex.liftedAt > 0 && recent(ex.liftedAt) && !ex.liftedBy.startsWith("(replaced")) {
+                plugin.discord.logPunishment(ex, true);
+            }
             return;
         }
         Entry en = new Entry(o.get("id").getAsString(), PunishManager.Type.valueOf(o.get("t").getAsString()),
@@ -229,6 +235,12 @@ public final class HistoryManager {
         en.liftedBy = o.get("lb").getAsString();
         en.liftedAt = o.get("la").getAsLong();
         map.put(en.id, en);
+        if (recent(en.created)) plugin.discord.logPunishment(en, false);
+    }
+
+    /** Only things that just happened are posted (old history loaded at startup is not). */
+    private static boolean recent(long t) {
+        return System.currentTimeMillis() - t < 120_000L;
     }
 
     public synchronized void exportLocal() {

@@ -37,6 +37,9 @@ public final class Msg {
 
     public void send(CommandSender to, String key, String... kv) {
         to.sendMessage(text("prefix").append(get(key, kv)));
+        if (plugin.cmdlog != null) {
+            plugin.cmdlog.result(to, key, plugin.getConfig().getString("messages." + key, "").startsWith("<red>"));
+        }
     }
 
     public Component prefixed(String key, String... kv) {

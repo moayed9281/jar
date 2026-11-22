@@ -43,10 +43,12 @@ public final class Net {
 
     private record Row(String ns, String key, String value, boolean deleted) { }
 
-    public static final String NOW = "CAST(UNIX_TIMESTAMP(NOW(3)) * 1000 AS UNSIGNED)";
+    /** Database clock expression (set from the chosen database type). */
+    public static String NOW = Dialect.MYSQL.now();
 
     private final SMPCore plugin;
     private final HikariDataSource ds;
+    public final Dialect dialect;
     private final ExecutorService writer = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "DiamondCraft-DB");
         t.setDaemon(true);
@@ -61,14 +63,33 @@ public final class Net {
     public Net(SMPCore plugin) {
         this.plugin = plugin;
         var c = plugin.getConfig();
+        this.dialect = Dialect.of(c.getString("network.database.type", "mariadb"));
+        NOW = dialect.now();
+        String host = c.getString("network.database.host", "127.0.0.1");
+        int port = c.getInt("network.database.port", dialect == Dialect.POSTGRES ? 5432 : 3306);
+        String name = c.getString("network.database.name", "diamondcraft");
         HikariConfig hc = new HikariConfig();
         hc.setPoolName("DiamondCraft");
-        hc.setDriverClassName("org.mariadb.jdbc.Driver");
-        hc.setJdbcUrl("jdbc:mariadb://" + c.getString("network.database.host", "127.0.0.1") + ":"
-                + c.getInt("network.database.port", 3306) + "/" + c.getString("network.database.name", "diamondcraft"));
-        hc.setUsername(c.getString("network.database.user", "diamondcraft"));
-        hc.setPassword(c.getString("network.database.password", ""));
-        hc.setMaximumPoolSize(Math.max(2, c.getInt("network.database.pool-size", 6)));
+        switch (dialect) {
+            case POSTGRES -> {
+                hc.setDriverClassName("org.postgresql.Driver");
+                hc.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/" + name);
+            }
+            case SQLITE -> {
+                hc.setDriverClassName("org.sqlite.JDBC");
+                hc.setJdbcUrl("jdbc:sqlite:" + new File(plugin.getDataFolder(),
+                        c.getString("network.database.file", "data.db")).getAbsolutePath());
+            }
+            default -> {
+                hc.setDriverClassName("org.mariadb.jdbc.Driver");
+                hc.setJdbcUrl("jdbc:mariadb://" + host + ":" + port + "/" + name);
+            }
+        }
+        if (dialect != Dialect.SQLITE) {
+            hc.setUsername(c.getString("network.database.user", "diamondcraft"));
+            hc.setPassword(c.getString("network.database.password", ""));
+        }
+        hc.setMaximumPoolSize(dialect == Dialect.SQLITE ? 1 : Math.max(2, c.getInt("network.database.pool-size", 6)));
         hc.setConnectionTimeout(8000);
         this.ds = new HikariDataSource(hc);
     }
@@ -91,25 +112,18 @@ public final class Net {
     }
 
     private static JsonObject parse(String json) {
-        return JsonParser.parseString(json).getAsJsonObject();
+        return new JsonParser().parse(json).getAsJsonObject();
     }
 
     private void schema() throws SQLException {
         try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
-            st.executeUpdate("CREATE TABLE IF NOT EXISTS dc_kv (ns VARCHAR(24) NOT NULL, k VARCHAR(96) NOT NULL, "
-                    + "v MEDIUMTEXT NULL, deleted TINYINT(1) NOT NULL DEFAULT 0, updated BIGINT NOT NULL, "
-                    + "PRIMARY KEY (ns, k), KEY idx_updated (updated)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            st.executeUpdate("CREATE TABLE IF NOT EXISTS dc_balance (uuid CHAR(36) NOT NULL PRIMARY KEY, "
-                    + "balance DOUBLE NOT NULL, updated BIGINT NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            st.executeUpdate("CREATE TABLE IF NOT EXISTS dc_counter (name VARCHAR(8) NOT NULL PRIMARY KEY, "
-                    + "n BIGINT NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            for (String q : dialect.schema()) st.executeUpdate(q);
         }
     }
 
     // ------------------------------------------------------------ key/value store
     private void upsert(Connection c, String ns, String key, String json) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("INSERT INTO dc_kv (ns,k,v,deleted,updated) VALUES (?,?,?,0,"
-                + NOW + ") ON DUPLICATE KEY UPDATE v=VALUES(v), deleted=0, updated=" + NOW)) {
+        try (PreparedStatement ps = c.prepareStatement(dialect.kvUpsert())) {
             ps.setString(1, ns);
             ps.setString(2, key);
             ps.setString(3, json);
@@ -124,8 +138,7 @@ public final class Net {
 
     public void putIfAbsent(String ns, String key, String json) {
         async(c -> {
-            try (PreparedStatement ps = c.prepareStatement("INSERT IGNORE INTO dc_kv (ns,k,v,deleted,updated) VALUES (?,?,?,0,"
-                    + NOW + ")")) {
+            try (PreparedStatement ps = c.prepareStatement(dialect.kvInsertIgnore())) {
                 ps.setString(1, ns);
                 ps.setString(2, key);
                 ps.setString(3, json);
@@ -187,6 +200,16 @@ public final class Net {
     /** Next number for a prefix (B, T, K). Returns -1 if the database fails. */
     public long nextId(String prefix) {
         try (Connection c = ds.getConnection()) {
+            if (dialect != Dialect.MYSQL) {
+                try (PreparedStatement ps = c.prepareStatement("INSERT INTO dc_counter (name, n) VALUES (?, 1) "
+                        + "ON CONFLICT (name) DO UPDATE SET n = dc_counter.n + 1 RETURNING n")) {
+                    ps.setString(1, prefix);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) return rs.getLong(1);
+                    }
+                }
+                return -1;
+            }
             for (int i = 0; i < 3; i++) {
                 try (PreparedStatement ps = c.prepareStatement("UPDATE dc_counter SET n = LAST_INSERT_ID(n + 1) WHERE name = ?")) {
                     ps.setString(1, prefix);
@@ -208,9 +231,12 @@ public final class Net {
     }
 
     public void raiseCounter(String prefix, long value) {
+        String q = dialect == Dialect.MYSQL
+                ? "INSERT INTO dc_counter (name, n) VALUES (?, ?) ON DUPLICATE KEY UPDATE n = GREATEST(n, VALUES(n))"
+                : "INSERT INTO dc_counter (name, n) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET n = "
+                + "CASE WHEN excluded.n > dc_counter.n THEN excluded.n ELSE dc_counter.n END";
         async(c -> {
-            try (PreparedStatement ps = c.prepareStatement("INSERT INTO dc_counter (name, n) VALUES (?, ?) "
-                    + "ON DUPLICATE KEY UPDATE n = GREATEST(n, VALUES(n))")) {
+            try (PreparedStatement ps = c.prepareStatement(q)) {
                 ps.setString(1, prefix);
                 ps.setLong(2, value);
                 ps.executeUpdate();
@@ -336,11 +362,11 @@ public final class Net {
         recent.values().removeIf(t -> now - t > 15000);
         if (rows.isEmpty()) return;
         async(c -> {
-            try (PreparedStatement ps = c.prepareStatement("INSERT INTO dc_kv (ns,k,v,deleted,updated) VALUES ('online',?,?,0,"
-                    + NOW + ") ON DUPLICATE KEY UPDATE v=VALUES(v), deleted=0, updated=" + NOW)) {
+            try (PreparedStatement ps = c.prepareStatement(dialect.kvUpsert())) {
                 for (String[] r : rows) {
-                    ps.setString(1, r[0]);
-                    ps.setString(2, r[1]);
+                    ps.setString(1, "online");
+                    ps.setString(2, r[0]);
+                    ps.setString(3, r[1]);
                     ps.addBatch();
                 }
                 ps.executeBatch();
@@ -400,7 +426,7 @@ public final class Net {
         JsonObject o = new JsonObject();
         o.addProperty("key", key);
         JsonArray a = new JsonArray();
-        for (String s : kv) a.add(s);
+        for (String s : kv) a.add(new com.google.gson.JsonPrimitive(s));
         o.add("args", a);
         o.addProperty("exp", System.currentTimeMillis() + 60000);
         put("note", target + "_" + System.currentTimeMillis(), o.toString());

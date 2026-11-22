@@ -19,6 +19,7 @@ public final class SettingsManager {
     private final File file;
     private final Set<UUID> nightVision = ConcurrentHashMap.newKeySet();
     private final Set<UUID> noTpa = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> noTpaHere = ConcurrentHashMap.newKeySet();
 
     public SettingsManager(SMPCore plugin) {
         this.plugin = plugin;
@@ -26,6 +27,9 @@ public final class SettingsManager {
         YamlConfiguration yml = YamlConfiguration.loadConfiguration(file);
         read(yml.getStringList("night-vision"), nightVision);
         read(yml.getStringList("no-tpa"), noTpa);
+        // older versions had ONE switch for both: keep what players chose
+        if (yml.contains("no-tpahere")) read(yml.getStringList("no-tpahere"), noTpaHere);
+        else noTpaHere.addAll(noTpa);
     }
 
     private void read(List<String> in, Set<UUID> out) {
@@ -41,6 +45,7 @@ public final class SettingsManager {
         YamlConfiguration yml = new YamlConfiguration();
         yml.set("night-vision", nightVision.stream().map(UUID::toString).toList());
         yml.set("no-tpa", noTpa.stream().map(UUID::toString).toList());
+        yml.set("no-tpahere", noTpaHere.stream().map(UUID::toString).toList());
         try {
             yml.save(file);
         } catch (IOException e) {
@@ -56,8 +61,22 @@ public final class SettingsManager {
         return !noTpa.contains(id);
     }
 
+    public boolean acceptsTpaHere(UUID id) {
+        return !noTpaHere.contains(id);
+    }
+
+    /** here = false: /tpa requests (someone wants to come to you), true: /tpahere requests (someone wants you to come to them). */
+    public boolean accepts(UUID id, boolean here) {
+        return here ? acceptsTpaHere(id) : acceptsTpa(id);
+    }
+
     public void toggleTpa(UUID id) {
         if (!noTpa.remove(id)) noTpa.add(id);
+        persist(id);
+    }
+
+    public void toggleTpaHere(UUID id) {
+        if (!noTpaHere.remove(id)) noTpaHere.add(id);
         persist(id);
     }
 
@@ -81,6 +100,7 @@ public final class SettingsManager {
         com.google.gson.JsonObject o = new com.google.gson.JsonObject();
         o.addProperty("nv", nightVision.contains(id));
         o.addProperty("nt", noTpa.contains(id));
+        o.addProperty("nh", noTpaHere.contains(id));
         return o.toString();
     }
 
@@ -92,12 +112,16 @@ public final class SettingsManager {
     public void applyRemote(String key, String value, boolean deleted) {
         if (deleted || value == null) return;
         UUID id = UUID.fromString(key);
-        com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(value).getAsJsonObject();
+        com.google.gson.JsonObject o = new com.google.gson.JsonParser().parse(value).getAsJsonObject();
         boolean nv = o.get("nv").getAsBoolean();
         if (nv) nightVision.add(id);
         else nightVision.remove(id);
-        if (o.get("nt").getAsBoolean()) noTpa.add(id);
+        boolean nt = o.get("nt").getAsBoolean();
+        if (nt) noTpa.add(id);
         else noTpa.remove(id);
+        // rows written by an older version have no "nh": they meant both
+        if (o.has("nh") ? o.get("nh").getAsBoolean() : nt) noTpaHere.add(id);
+        else noTpaHere.remove(id);
         Player p = Bukkit.getPlayer(id);
         if (p != null) {
             if (nv) applyNightVision(p);
@@ -108,6 +132,7 @@ public final class SettingsManager {
     public void exportLocal() {
         java.util.Set<UUID> all = new java.util.HashSet<>(nightVision);
         all.addAll(noTpa);
+        all.addAll(noTpaHere);
         for (UUID id : all) plugin.net.putIfAbsent("set", id.toString(), json(id));
     }
 }

@@ -20,4 +20,11 @@ public final class MenuRouter implements Menus {
         if (bedrock != null && bedrock.isBedrock(p)) bedrock.open(p, title, message, entries, back);
         else java.open(p, title, message, entries, back);
     }
+
+    @Override
+    public void input(Player p, Component title, Component label, String initial, int maxLength,
+                      java.util.function.Consumer<String> onSubmit, Runnable onBack) {
+        if (bedrock != null && bedrock.isBedrock(p)) bedrock.input(p, title, label, initial, maxLength, onSubmit, onBack);
+        else java.input(p, title, label, initial, maxLength, onSubmit, onBack);
+    }
 }

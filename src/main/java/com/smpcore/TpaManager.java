@@ -69,7 +69,7 @@ public final class TpaManager {
                 return false;
             }
         }
-        if (!plugin.settings.acceptsTpa(toId) && !from.hasPermission("smpcore.bypass.tpablock")) {
+        if (!plugin.settings.accepts(toId, here) && !from.hasPermission("smpcore.bypass.tpablock")) {
             m.send(from, "tpa-blocked", "player", plugin.players.nameFor(toId));
             return false;
         }
@@ -135,7 +135,7 @@ public final class TpaManager {
             }
             return;
         }
-        JsonObject o = JsonParser.parseString(value).getAsJsonObject();
+        JsonObject o = new JsonParser().parse(value).getAsJsonObject();
         long exp = o.get("x").getAsLong();
         if (exp < System.currentTimeMillis()) return;
         Player target = Bukkit.getPlayer(to);

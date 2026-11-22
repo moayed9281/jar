@@ -5,12 +5,14 @@ import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-/** Command registered in code (paper-plugin.yml has no commands section). */
+/** Command registered in code (paper-plugin.yml has no commands section). Every run is logged. */
 public final class DynCommand extends Command {
+    private final SMPCore plugin;
     private final Cmds cmds;
 
-    public DynCommand(String name, String permission, List<String> aliases, Cmds cmds) {
+    public DynCommand(SMPCore plugin, String name, String permission, List<String> aliases, Cmds cmds) {
         super(name);
+        this.plugin = plugin;
         this.cmds = cmds;
         setPermission(permission);
         setAliases(aliases);
@@ -19,8 +21,24 @@ public final class DynCommand extends Command {
 
     @Override
     public boolean execute(CommandSender sender, String label, String[] args) {
-        if (!testPermission(sender)) return true;
-        return cmds.onCommand(sender, this, label, args);
+        String line = "/" + label + (args.length == 0 ? "" : " " + String.join(" ", args));
+        if (!testPermission(sender)) {
+            plugin.cmdlog.denied(sender, line);
+            return true;
+        }
+        if (sender instanceof org.bukkit.entity.Player pl && plugin.combat.blocksCommand(pl, getName())) {
+            int left = plugin.combat.remaining(pl);
+            plugin.cmdlog.blocked(sender, line, "BLOCKED (in combat, " + left + "s left)");
+            sender.sendMessage(plugin.msg.prefixed("combat-blocked", "seconds", String.valueOf(left)));
+            return true;
+        }
+        plugin.cmdlog.start(sender, line);
+        try {
+            return cmds.onCommand(sender, this, label, args);
+        } catch (RuntimeException | Error t) {
+            plugin.cmdlog.error(sender, line, t);
+            throw t;
+        }
     }
 
     @Override

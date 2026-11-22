@@ -1,6 +1,6 @@
 package com.smpcore;
 
-import org.geysermc.cumulus.form.SimpleForm;
+import org.geysermc.cumulus.form.Form;
 import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.util.UUID;
@@ -24,7 +24,7 @@ public final class FloodgateHook {
         api.getUuidFor(gamertag).whenComplete((u, t) -> cb.accept(t != null ? null : u));
     }
 
-    public void send(UUID id, SimpleForm form) {
+    public void send(UUID id, Form form) {
         api.sendForm(id, form);
     }
 }

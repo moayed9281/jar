@@ -37,6 +37,19 @@ tpa:
   incoming-menu: true
   # permission smpcore.bypass.playtime skips the playtime rule
 
+# ---------------------------------------------------------------- COMBAT TIMER
+# After a fight, DiamondCraft commands, menu buttons and teleports are blocked for `seconds`.
+# Dying or leaving ends it. Players with permission smpcore.combat.bypass ignore all of this.
+combat:
+  enabled: true
+  seconds: 20
+  pvp-only: true             # true = only player vs player fights; false = hits from mobs also start combat
+  actionbar: true            # show the countdown above the hotbar
+  # DiamondCraft commands that still work in combat (staff tools). Everything else is blocked.
+  allowed-commands: [ban, unban, kick, timeout, untimeout, punish, smpcore, eco]
+  # Commands of OTHER plugins to block in combat too (typed commands), e.g. [shop, sellgui, ah, spawn]
+  extra-blocked-commands: []
+
 # ---------------------------------------------------------------- NETWORK (Velocity, several servers)
 # Shares money, homes, bans/timeouts/history, favorites, settings, Discord links and TPA
 # between all your servers through ONE MySQL/MariaDB database. Needs a restart to change.
@@ -46,6 +59,9 @@ network:
   server-name: "survival"    # EXACT name of THIS server in velocity.toml
   sync-seconds: 3            # how often servers check the database for changes
   database:
+    # mariadb, mysql, postgresql or sqlite.  sqlite = a file on THIS server only (no sharing between servers).
+    type: "mariadb"
+    file: "data.db"           # sqlite only
     host: "127.0.0.1"
     port: 3306
     name: "diamondcraft"
@@ -116,6 +132,15 @@ economy:
   max-balance: 1000000000000   # nobody can ever hold more than this
   log-pay-over: 100000         # payments at or above this are written to economy-log.txt
   pay-presets: [100, 1000, 10000, 100000]   # amounts shown in the Pay menu
+  # Economy log: goes to the console, plugins/DiamondCraft/economy-log.txt and the Discord channel
+  # discord.logs.economy-channel-id (see the DISCORD LINK section). /eco give/take/set is ALWAYS logged.
+  log:
+    enabled: true            # false = only /eco actions and big payments are logged (old behaviour)
+    pay: true                # every /pay and Pay-menu payment (false = only payments of log-pay-over or more)
+    shop: true               # money taken / given through Vault: EconomyShopGUI buy + sell, other plugins
+    shop-min-amount: 0       # ignore shop moves smaller than this
+    rtp: true                # RTP prices and refunds
+    rewards: true            # Discord link reward
   # Needs the Vault plugin so EconomyShopGUI can use this economy.
   # Do not run another economy plugin (EssentialsX etc.) at the same time.
 
@@ -137,6 +162,11 @@ menus:
   home-button: "<yellow>{home}"
   set-home-button: "<green>+ Set new home here"
   home-actions-title: "<aqua>DiamondCraft <gray>| <gold>{home}"
+  sethome-title: "<aqua>DiamondCraft <gray>| <gold>Name your new home"
+  home-name-label: "<gray>Home name"
+  rename-button: "<yellow>Rename"
+  rename-title: "<aqua>DiamondCraft <gray>| <gold>Rename {home}"
+  save-button: "<green>Save"
   teleport-button: "<green>Teleport"
   delete-button: "<red>Delete"
   back-button: "<gray>Back"
@@ -152,13 +182,21 @@ menus:
   deny-button: "<red>Deny"
   settings-title: "<aqua>DiamondCraft <gray>| <gold>Settings"
   nightvision-button: "<yellow>Night Vision: {state}"
-  tpa-requests-button: "<yellow>Accept teleport requests: {state}"
+  settings-tpa-button: "<yellow>Accept TPA requests: {state}"
+  settings-tpahere-button: "<yellow>Accept TPA Here requests: {state}"
   state-on: "<green>ON"
   state-off: "<red>OFF"
   pay-title: "<aqua>DiamondCraft <gray>| <gold>Pay a player"
   pay-info: "<gray>Pick a player to pay."
   pay-amount-title: "<aqua>DiamondCraft <gray>| <gold>Pay {player}"
   pay-button: "<green>Pay {amount}"
+  pay-all-button: "<aqua>All players (also offline)"
+  pay-all-title: "<aqua>DiamondCraft <gray>| <gold>Pay a player <gray>({page}/{pages})"
+  pay-search-button: "<aqua>Search a player by name"
+  pay-search-title: "<aqua>DiamondCraft <gray>| <gold>Search a player"
+  pay-search-label: "<gray>Player name"
+  prev-button: "<gray>Previous page"
+  next-button: "<gray>Next page"
   teleport-title: "<aqua>DiamondCraft <gray>| <gold>Teleport"
   teleport-info: "<gray>Choose how you want to teleport."
   tpa-menu-button: "<aqua>Teleport to a player <gray>(TPA)"
@@ -224,11 +262,30 @@ discord:
   linked-role-id: ""         # optional: role given to linked players (bot needs Manage Roles)
   code-minutes: 10           # how long a /link code works
   network-link: true         # network mode: /link also works on servers where the bot is NOT running
+  # ---- LOG CHANNELS: the bot posts bans, timeouts, kicks, unbans, /eco actions and links here.
+  # How to get a channel ID: Discord Settings > Advanced > Developer Mode ON, then right-click the
+  # channel > Copy Channel ID. The bot needs View Channel, Send Messages and Embed Links there.
+  # Check it with /smpcore testlog (after /smpcore reload).
+  logs:
+    channel-id: ""               # default channel for ALL logs (leave empty = no logs)
+    punishments-channel-id: ""   # optional: bans / timeouts / kicks / unbans go here instead
+    economy-channel-id: ""       # optional: /eco and big payments go here instead
+    links-channel-id: ""         # optional: Discord link / unlink events go here instead
+    commands-channel-id: ""      # optional: every command (and if it worked or failed) goes here instead
   link-reward: 0             # money for linking the first time (needs economy), 0 = none
   # Console commands run ONCE per account when linking ({player} and {uuid} are filled in).
   # If the player is offline they run the next time they join. Examples:
   #   link-commands: ["give {player} diamond 5", "lp user {player} permission set cool.perk true"]
   link-commands: []
+
+# ---------------------------------------------------------------- COMMAND LOG
+# Every DiamondCraft command is logged with its result: OK, FAILED, DENIED (no permission) or ERROR.
+command-log:
+  enabled: true
+  file: true                 # plugins/DiamondCraft/logs/commands.log
+  discord: true              # post to the Discord log channel (discord.logs.*)
+  log-denied: true           # also log commands players were not allowed to use
+  exclude: []                # commands you do NOT want logged, e.g. [balance, status]
 
 # ---------------------------------------------------------------- STAFF MENU (/punish)
 # Only players with the permission smpcore.staff (OP by default) can open it.
@@ -298,6 +355,14 @@ messages:
   home-limit: "<red>You reached your home limit (<white>{limit}</white>)."
   home-set: "<green>Home <yellow>{home}</yellow> set."
   home-deleted: "<yellow>{home}</yellow> deleted."
+  home-renamed: "<green>Home <yellow>{old}</yellow> is now called <yellow>{home}</yellow>."
+  home-exists: "<red>You already have a home named <yellow>{home}</yellow>."
+  input-chat: "<gray>Type it in chat, or type <white>cancel</white>: "
+  combat-tagged: "<red>You are in combat! Plugin commands, menus and teleports are blocked for <white>{seconds}s</white>."
+  combat-blocked: "<red>You can't do that while in combat (<white>{seconds}s</white> left)."
+  combat-ended: "<green>You are no longer in combat."
+  combat-actionbar: "<red>In combat: <white>{seconds}s"
+  combat-tp-cancelled: "<red>Teleport cancelled because you are in combat."
   home-none: "<red>You have no homes. Use /sethome."
   home-not-found: "<red>No home named <yellow>{home}</yellow>."
   tp-countdown: "<gray>Teleporting in <white>{seconds}s</white>... don't move."
@@ -397,3 +462,5 @@ messages:
   home-other-server: "<red>That home is on another server ({server}), but network mode is off."
   punish-downgrade: "<red>That player already has a longer punishment (ID {id}). Unban first, or use a longer duration."
   rtp-busy: "<red>Random teleport is busy right now. Try again in a few seconds."
+  discord-testlog-ok: "<green>Test log sent to {count} channel(s). Check Discord."
+  discord-testlog-none: "<red>No log channel is set (discord.logs.*), the channel is wrong, or the bot is not online."

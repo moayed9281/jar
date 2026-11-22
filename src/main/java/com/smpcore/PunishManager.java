@@ -133,7 +133,7 @@ public final class PunishManager {
     }
 
     private static Rec fromJson(String json) {
-        JsonObject o = JsonParser.parseString(json).getAsJsonObject();
+        JsonObject o = new JsonParser().parse(json).getAsJsonObject();
         return new Rec(Type.valueOf(o.get("t").getAsString()), UUID.fromString(o.get("u").getAsString()),
                 o.get("n").getAsString(), o.get("x").getAsLong(), o.get("r").getAsString(),
                 o.get("s").getAsString(), o.get("p").getAsString());
