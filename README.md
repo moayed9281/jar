@@ -83,6 +83,13 @@ Settings has two separate buttons: accept TPA requests and accept TPA Here reque
 ## Paying offline players
 /pay <name> <amount> works for anyone who ever joined (even before the plugin was installed). The Pay menu has "All players (also offline)" (paged) and "Search a player by name".
 
+## Server restart
+/serverrestart <minutes> (alias /restartin) announces the restart right away and then every 5 minutes (30, 25, 20 ... 5), counts down the last 5 seconds, kicks everyone and restarts. /serverrestart cancel stops it, /serverrestart shows the time left. Permission smpcore.restart (OP, console works too). Settings: restart.* in config.yml. restart.method: restart uses Spigot's restart script (spigot.yml restart-script), stop just stops the server so your host/panel must start it again. The name is not /restart because Spigot already owns that command.
+
+## Bounties
+/bounty (or /bounties) opens the bounty menu; /bounty <player> <amount> puts money from your balance on someone's head (works for offline players too, amounts like 25k and 1m are fine); /bounty <player> shows their bounty. Whoever kills that player in PvP collects the whole bounty. Bounties stack, are saved across restarts and shared across servers in network mode.
+Settings: bounty.* in config.yml (min-amount, announce, presets). There is a Bounty button in /menu and the Esc menu. Placed and collected bounties go to the economy log (economy.log.bounty). Placeholders: %diamondcraft_bounty% and %diamondcraft_bounty_raw%. Permission smpcore.bounty (everyone).
+
 ## Mute
 /mute <player> [duration] <reason> and /unmute <player> (permission smpcore.mute, OP by default). Works like /timeout: reason required, no duration = permanent, saved in the punishment history (ID starts with M-), shown in the /punish staff menu and logged to the Discord punishments channel.
 A muted player can't send chat, can't use the commands in mute.blocked-commands (msg, tell, w, r, me, say...), and with mute.hide-chat: true can't see other players' chat. Join/leave/death messages and staff broadcasts are not hidden.

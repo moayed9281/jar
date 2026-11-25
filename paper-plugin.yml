@@ -1,0 +1,30 @@
+name: DiamondCraft
+version: 1.0.0
+main: com.smpcore.SMPCore
+bootstrapper: com.smpcore.DcBootstrap
+api-version: '1.21'
+description: DiamondCraft homes, TPA, Esc menu and punishments
+dependencies:
+  server:
+    LuckPerms:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    floodgate:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    Vault:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    EconomyShopGUI-Premium:
+      load: AFTER
+      required: false
+    EconomyShopGUI:
+      load: AFTER
+      required: false
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
+      join-classpath: true
