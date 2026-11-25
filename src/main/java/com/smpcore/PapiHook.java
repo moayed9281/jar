@@ -81,6 +81,8 @@ final class PapiHook extends PlaceholderExpansion {
                 case "nightvision" -> plugin.settings.nightVision(id) ? "On" : "Off";
                 case "tpa_requests" -> plugin.settings.acceptsTpa(id) ? "On" : "Off";
                 case "tpahere_requests" -> plugin.settings.acceptsTpaHere(id) ? "On" : "Off";
+                case "bounty" -> plugin.bounty.total(id) > 0 ? plugin.economy.format(plugin.bounty.total(id)) : "None";
+                case "bounty_raw" -> String.format(java.util.Locale.US, "%.2f", plugin.bounty.total(id));
                 case "combat" -> on != null && plugin.combat.inCombat(on) ? "Yes" : "No";
                 case "combat_seconds" -> on == null ? "0" : String.valueOf(plugin.combat.remaining(on));
                 default -> null;

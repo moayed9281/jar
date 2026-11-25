@@ -427,6 +427,79 @@ public final class Gui {
                 back(() -> openPay(p)));
     }
 
+    // ------------------------------------------------------------ bounties
+    public void openBounty(Player p) {
+        Msg m = plugin.msg;
+        List<Menus.Entry> es = new ArrayList<>();
+        es.add(new Menus.Entry(m.text("menus.bounty-place-button"), null, Material.GOLD_INGOT, () -> openBountyPick(p)));
+        List<Map.Entry<UUID, BountyManager.Bounty>> top = plugin.bounty.top(28);
+        for (Map.Entry<UUID, BountyManager.Bounty> e : top) {
+            UUID target = e.getKey();
+            String name = e.getValue().name;
+            es.add(new Menus.Entry(m.text("menus.bounty-entry", "player", name,
+                    "amount", plugin.economy.format(e.getValue().total)), m.text("menus.bounty-entry-tip"),
+                    Material.PLAYER_HEAD, () -> {
+                if (target.equals(p.getUniqueId())) openBounty(p);
+                else openBountyAmount(p, target, name);
+            }));
+        }
+        plugin.menus.open(p, m.text("menus.bounty-title"),
+                top.isEmpty() ? m.text("menus.bounty-empty") : m.text("menus.bounty-info"), es, null);
+    }
+
+    public void openBountyPick(Player p) {
+        Msg m = plugin.msg;
+        List<Menus.Entry> es = new ArrayList<>();
+        for (Player o : Bukkit.getOnlinePlayers()) {
+            if (o.getUniqueId().equals(p.getUniqueId())) continue;
+            es.add(new Menus.Entry(m.mm("<yellow>" + o.getName()), null, Material.PLAYER_HEAD,
+                    () -> openBountyAmount(p, o.getUniqueId(), o.getName())));
+        }
+        es.add(new Menus.Entry(m.text("menus.pay-search-button"), null, Material.NAME_TAG, () ->
+                plugin.menus.input(p, m.text("menus.pay-search-title"), m.text("menus.pay-search-label"), "", 32,
+                        text -> {
+                            String q = text.trim();
+                            if (q.isEmpty()) {
+                                openBountyPick(p);
+                                return;
+                            }
+                            plugin.players.resolveKnown(q, r -> {
+                                if (r == null) m.send(p, "player-unknown");
+                                else if (r.id().equals(p.getUniqueId())) m.send(p, "bounty-self");
+                                else openBountyAmount(p, r.id(), r.name());
+                            });
+                        }, () -> openBountyPick(p))));
+        plugin.menus.open(p, m.text("menus.bounty-pick-title"), m.text("menus.bounty-pick-info"), es,
+                back(() -> openBounty(p)));
+    }
+
+    public void openBountyAmount(Player p, UUID targetId, String targetName) {
+        Msg m = plugin.msg;
+        List<Double> presets = plugin.getConfig().getDoubleList("bounty.presets");
+        if (presets.isEmpty()) presets = List.of(5000.0, 25000.0, 100000.0, 500000.0);
+        String btn = plugin.getConfig().getString("menus.bounty-button", "<gold>Bounty {amount}");
+        List<Menus.Entry> es = new ArrayList<>();
+        for (double amt : presets) {
+            es.add(new Menus.Entry(m.mm(btn.replace("{amount}", plugin.economy.format(amt))), null,
+                    Material.GOLD_INGOT, () -> plugin.bounty.place(p, targetId, targetName, amt)));
+        }
+        es.add(new Menus.Entry(m.text("menus.bounty-custom-button"), null, Material.NAME_TAG, () ->
+                plugin.menus.input(p, m.text("menus.bounty-custom-title", "player", targetName),
+                        m.text("menus.bounty-custom-label"), "", 16, text -> {
+                            double amt = Cmds.parseAmount(text.trim());
+                            if (amt <= 0) {
+                                m.send(p, "pay-invalid");
+                                openBountyAmount(p, targetId, targetName);
+                            } else {
+                                plugin.bounty.place(p, targetId, targetName, amt);
+                            }
+                        }, () -> openBountyAmount(p, targetId, targetName))));
+        double now = plugin.bounty.total(targetId);
+        plugin.menus.open(p, m.text("menus.bounty-amount-title", "player", targetName),
+                now > 0 ? m.text("menus.bounty-amount-info", "amount", plugin.economy.format(now)) : null, es,
+                back(() -> openBounty(p)));
+    }
+
     public void openRtp(Player p) {
         Msg m = plugin.msg;
         if (!plugin.rtp.rtpOpen()) {

@@ -101,6 +101,11 @@ public final class EconomyManager {
         return c.getBoolean("economy.log.enabled", true) && c.getBoolean("economy.log." + type, true);
     }
 
+    /** Bounty placed / claimed (economy.log.bounty). */
+    public void logBounty(String title, String text, int color) {
+        if (logOn("bounty")) record(title, text, color);
+    }
+
     /** /eco give | take | set. Always logged. */
     public void logAdmin(String staff, String sub, String target, double amt, double before, double after) {
         String title = switch (sub) {

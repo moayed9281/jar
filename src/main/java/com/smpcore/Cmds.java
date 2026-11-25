@@ -60,7 +60,7 @@ public final class Cmds implements TabExecutor {
     }
 
     /** 1500, 1.5k, 2m, 1b. Returns -1 when invalid. */
-    private double parseAmount(String raw) {
+    static double parseAmount(String raw) {
         try {
             String t = raw.replace(",", "").toLowerCase(Locale.ROOT);
             double mult = 1;
@@ -365,6 +365,69 @@ public final class Cmds implements TabExecutor {
                     plugin.economy.pay(p, t.id(), t.name(), amt);
                 });
             }
+            case "bounty" -> {
+                if (!plugin.bounty.enabled()) {
+                    msg.send(s, plugin.economy.enabled() ? "bounty-disabled" : "economy-disabled");
+                    return true;
+                }
+                Player p = player(s);
+                if (p == null) return true;
+                if (a.length == 0 || a[0].equalsIgnoreCase("list")) {
+                    plugin.gui.openBounty(p);
+                    return true;
+                }
+                final String[] r = a[0].equalsIgnoreCase("set") ? Arrays.copyOfRange(a, 1, a.length) : a;
+                if (r.length == 0) {
+                    msg.send(p, "bounty-usage");
+                    return true;
+                }
+                if (r.length == 1) {
+                    plugin.players.resolveKnown(r[0], t -> {
+                        if (t == null) {
+                            msg.send(p, "player-unknown");
+                            return;
+                        }
+                        double tot = plugin.bounty.total(t.id());
+                        if (tot > 0) msg.send(p, "bounty-info", "player", t.name(), "amount", plugin.economy.format(tot));
+                        else msg.send(p, "bounty-none", "player", t.name());
+                    });
+                    return true;
+                }
+                final double amt = parseAmount(r[1]);
+                if (amt <= 0) {
+                    msg.send(p, "pay-invalid");
+                    return true;
+                }
+                plugin.players.resolveKnown(r[0], t -> {
+                    if (t == null) {
+                        msg.send(p, "player-unknown");
+                        return;
+                    }
+                    plugin.bounty.place(p, t.id(), t.name(), amt);
+                });
+            }
+            case "serverrestart" -> {
+                if (a.length == 0) {
+                    plugin.restart.status(s);
+                    return true;
+                }
+                if (a[0].equalsIgnoreCase("cancel")) {
+                    plugin.restart.cancel(s);
+                    return true;
+                }
+                int minutes;
+                try {
+                    minutes = Integer.parseInt(a[0]);
+                } catch (NumberFormatException e) {
+                    msg.send(s, "restart-usage");
+                    return true;
+                }
+                if (minutes < 1 || minutes > plugin.getConfig().getInt("restart.max-minutes", 1440)) {
+                    msg.send(s, "restart-invalid", "max", String.valueOf(plugin.getConfig().getInt("restart.max-minutes", 1440)));
+                    return true;
+                }
+                plugin.restart.schedule(s, minutes);
+            }
             case "baltop" -> {
                 if (!econOn(s)) return true;
                 msg.send(s, "baltop-header");
@@ -485,8 +548,13 @@ public final class Cmds implements TabExecutor {
                 case "unban" -> out.addAll(plugin.punish.names(PunishManager.Type.BAN));
                 case "untimeout" -> out.addAll(plugin.punish.names(PunishManager.Type.TIMEOUT));
                 case "unmute" -> out.addAll(plugin.punish.names(PunishManager.Type.MUTE));
+                case "serverrestart" -> out.addAll(List.of("5", "10", "15", "30", "60", "cancel"));
                 case "smpcore" -> out.addAll(List.of("reload", "testlog"));
                 case "pay", "balance" -> Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
+                case "bounty" -> {
+                    out.addAll(List.of("list", "set"));
+                    Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
+                }
                 case "eco" -> out.addAll(List.of("give", "take", "set"));
                 case "tpfav" -> out.addAll(List.of("add", "remove"));
                 case "punish" -> out.addAll(List.of("id", "player"));
@@ -494,7 +562,7 @@ public final class Cmds implements TabExecutor {
                 case "rtpq" -> out.addAll(List.of("join", "leave"));
                 default -> { }
             }
-        } else if (a.length == 2 && (cmd.equals("eco") || cmd.equals("tpfav"))) {
+        } else if (a.length == 2 && (cmd.equals("eco") || cmd.equals("tpfav") || cmd.equals("bounty"))) {
             Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
         } else if (a.length == 2 && (cmd.equals("ban") || cmd.equals("timeout") || cmd.equals("mute"))) {
             out.addAll(List.of("30m", "1h", "6h", "1d", "7d", "30d", "perm"));

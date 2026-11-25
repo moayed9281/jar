@@ -37,6 +37,25 @@ tpa:
   incoming-menu: true
   # permission smpcore.bypass.playtime skips the playtime rule
 
+# ---------------------------------------------------------------- SERVER RESTART
+# /serverrestart <minutes> (alias /restartin) announces the restart every 5 minutes, counts down the last
+# 5 seconds, kicks everyone and restarts. /serverrestart cancel stops it. Permission smpcore.restart (OP).
+restart:
+  method: restart            # restart = Spigot restart script (spigot.yml restart-script; stops if there is none)
+                             # stop    = just stop the server (your host/panel must start it again)
+  announce-every-minutes: 5
+  countdown-seconds: 5
+  max-minutes: 1440
+
+# ---------------------------------------------------------------- BOUNTIES
+# /bounty <player> <amount> puts money (taken from your balance) on someone's head. Whoever kills
+# that player in PvP collects everything. /bounty or /bounty list opens the menu. Needs economy.enabled.
+bounty:
+  enabled: true
+  min-amount: 1000
+  announce: true             # tell the whole server when a bounty is placed or collected
+  presets: [5000, 25000, 100000, 500000]   # amounts in the bounty menu (players can also type their own)
+
 # ---------------------------------------------------------------- MUTE
 # /mute <player> [duration] <reason>  and  /unmute <player>   (permission smpcore.mute, OP by default)
 mute:
@@ -53,7 +72,7 @@ combat:
   pvp-only: true             # true = only player vs player fights; false = hits from mobs also start combat
   actionbar: true            # show the countdown above the hotbar
   # DiamondCraft commands that still work in combat (staff tools). Everything else is blocked.
-  allowed-commands: [ban, unban, kick, timeout, untimeout, punish, smpcore, eco]
+  allowed-commands: [ban, unban, kick, timeout, untimeout, punish, smpcore, eco, serverrestart]
   # Commands of OTHER plugins to block in combat too (typed commands), e.g. [shop, sellgui, ah, spawn]
   extra-blocked-commands: []
 
@@ -148,6 +167,7 @@ economy:
     shop-min-amount: 0       # ignore shop moves smaller than this
     rtp: true                # RTP prices and refunds
     rewards: true            # Discord link reward
+    bounty: true             # bounties placed and collected
   # Needs the Vault plugin so EconomyShopGUI can use this economy.
   # Do not run another economy plugin (EssentialsX etc.) at the same time.
 
@@ -197,6 +217,20 @@ menus:
   pay-info: "<gray>Pick a player to pay."
   pay-amount-title: "<aqua>DiamondCraft <gray>| <gold>Pay {player}"
   pay-button: "<green>Pay {amount}"
+  bounty-title: "<aqua>DiamondCraft <gray>| <gold>Bounties"
+  bounty-info: "<gray>Kill a player with a bounty to collect it. Click one to add money to it."
+  bounty-empty: "<gray>No active bounties yet."
+  bounty-place-button: "<gold>Place a bounty"
+  bounty-entry: "<red>{player} <gray>- <gold>{amount}"
+  bounty-entry-tip: "<gray>Click to add to this bounty"
+  bounty-pick-title: "<aqua>DiamondCraft <gray>| <gold>Who gets a bounty?"
+  bounty-pick-info: "<gray>Pick a player, or search by name (offline players work too)."
+  bounty-amount-title: "<aqua>DiamondCraft <gray>| <gold>Bounty on {player}"
+  bounty-amount-info: "<gray>Current bounty: <gold>{amount}"
+  bounty-button: "<gold>Bounty {amount}"
+  bounty-custom-button: "<aqua>Custom amount"
+  bounty-custom-title: "<aqua>DiamondCraft <gray>| <gold>Bounty on {player}"
+  bounty-custom-label: "<gray>Amount (like 25000, 25k or 1m)"
   pay-all-button: "<aqua>All players (also offline)"
   pay-all-title: "<aqua>DiamondCraft <gray>| <gold>Pay a player <gray>({page}/{pages})"
   pay-search-button: "<aqua>Search a player by name"
@@ -254,6 +288,7 @@ esc-menu:
     - {label: "Friends", command: "tpfav"}
     - {label: "Sell", command: "sellgui", requires: economy}
     - {label: "Pay", command: "pay", requires: economy}
+    - {label: "Bounty", command: "bounty", requires: economy}
     - {label: "Teleport", command: "tpmenu"}
     - {label: "Status", command: "status"}
     - {label: "Balance", command: "balance", requires: economy}
@@ -420,6 +455,27 @@ messages:
   broadcast-ban: "<red>{player} was banned by {staff}. <gray>Reason: {reason} ({duration})"
   broadcast-kick: "<red>{player} was kicked by {staff}. <gray>Reason: {reason}"
   broadcast-timeout: "<gold>{player} was timed out by {staff} for {duration}. <gray>Reason: {reason}"
+  restart-usage: "<red>/serverrestart <minutes>   <gray>|   <red>/serverrestart cancel"
+  restart-invalid: "<red>Use a number of minutes from 1 to {max}."
+  restart-scheduled: "<green>Server restart scheduled in <yellow>{time}</yellow>. <gray>Cancel with /serverrestart cancel."
+  restart-announce: "<gold><bold>SERVER RESTART</bold> <yellow>in {time}!"
+  restart-seconds: "<red><bold>Restarting in {seconds}..."
+  restart-now: "<red><bold>Restarting now!"
+  restart-kick: "<gold>The server is restarting.<newline><gray>It will be back in a minute!"
+  restart-cancelled: "<green>The server restart was cancelled."
+  restart-none: "<gray>No restart is scheduled."
+  restart-status: "<yellow>The server restarts in {time}."
+  bounty-usage: "<red>/bounty <player> <amount>   <gray>|   <red>/bounty list"
+  bounty-disabled: "<red>Bounties are turned off."
+  bounty-self: "<red>You can't put a bounty on yourself."
+  bounty-min: "<red>The minimum bounty is <yellow>{amount}</yellow>."
+  bounty-placed: "<green>You put <yellow>{amount}</yellow> on <yellow>{player}</yellow>. Their bounty is now <yellow>{total}</yellow>."
+  bounty-broadcast: "<gold>{player} put a bounty of {amount} on {target}! <gray>Total: <yellow>{total}</yellow> <gray>- kill them to collect it."
+  bounty-on-you: "<red>{player} put a <yellow>{amount}</yellow> bounty on you!"
+  bounty-claimed: "<green>You collected the <yellow>{amount}</yellow> bounty on <yellow>{player}</yellow>!"
+  bounty-claimed-broadcast: "<gold>{killer} killed {player} and collected the {amount} bounty!"
+  bounty-info: "<yellow>{player}</yellow> has a bounty of <yellow>{amount}</yellow>."
+  bounty-none: "<gray>{player} has no bounty."
   usage-mute: "<red>/mute <player> [duration] <reason>  (a reason is required)"
   usage-unmute: "<red>/unmute <player>"
   not-muted: "<red>That player is not muted."

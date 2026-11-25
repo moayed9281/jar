@@ -27,6 +27,8 @@ public final class SMPCore extends JavaPlugin {
     public Net net;
     public CommandLog cmdlog;
     public CombatManager combat;
+    public BountyManager bounty;
+    public RestartManager restart;
     private Object vaultProvider;
 
     @Override
@@ -53,6 +55,9 @@ public final class SMPCore extends JavaPlugin {
         economy = new EconomyManager(this);
         settings = new SettingsManager(this);
         favorites = new FavoritesManager(this);
+        bounty = new BountyManager(this);
+        restart = new RestartManager(this);
+        getServer().getPluginManager().registerEvents(bounty, this);
         rtp = new RtpManager(this);
         punish = new PunishManager(this);
         history = new HistoryManager(this);
@@ -92,6 +97,8 @@ public final class SMPCore extends JavaPlugin {
         cmd(cmds, "unmute", "smpcore.mute");
         cmd(cmds, "balance", "smpcore.economy", "bal", "money");
         cmd(cmds, "pay", "smpcore.economy");
+        cmd(cmds, "bounty", "smpcore.bounty", "bounties");
+        cmd(cmds, "serverrestart", "smpcore.restart", "restartin");
         cmd(cmds, "baltop", "smpcore.economy");
         cmd(cmds, "eco", "smpcore.eco");
         cmd(cmds, "settings", "smpcore.settings");
@@ -128,6 +135,7 @@ public final class SMPCore extends JavaPlugin {
             // local files: write everything now so the last changes before a stop are never lost
             if (homes != null) homes.saveNow();
             if (favorites != null) favorites.save();
+            if (bounty != null) bounty.save();
             if (settings != null) settings.save();
             if (history != null) history.save();
             if (punish != null) punish.save();
@@ -181,7 +189,7 @@ public final class SMPCore extends JavaPlugin {
         Object[][] perms = {
                 {"smpcore.home", PermissionDefault.TRUE}, {"smpcore.tpa", PermissionDefault.TRUE},
                 {"smpcore.ban", PermissionDefault.OP}, {"smpcore.unban", PermissionDefault.OP},
-                {"smpcore.kick", PermissionDefault.OP}, {"smpcore.timeout", PermissionDefault.OP}, {"smpcore.mute", PermissionDefault.OP},
+                {"smpcore.kick", PermissionDefault.OP}, {"smpcore.timeout", PermissionDefault.OP}, {"smpcore.mute", PermissionDefault.OP}, {"smpcore.restart", PermissionDefault.OP},
                 {"smpcore.reload", PermissionDefault.OP}, {"smpcore.bypass.delay", PermissionDefault.OP},
                 {"smpcore.bypass.cooldown", PermissionDefault.OP},
                 {"smpcore.bypass.playtime", PermissionDefault.OP}, {"smpcore.bypass.tpablock", PermissionDefault.OP},
@@ -189,7 +197,7 @@ public final class SMPCore extends JavaPlugin {
                 {"smpcore.settings", PermissionDefault.TRUE}, {"smpcore.settings.nightvision", PermissionDefault.TRUE},
                 {"smpcore.menu", PermissionDefault.TRUE}, {"smpcore.status", PermissionDefault.TRUE},
                 {"smpcore.staff", PermissionDefault.OP}, {"smpcore.punish.override", PermissionDefault.OP}, {"smpcore.link", PermissionDefault.TRUE}, {"smpcore.punish.exempt", PermissionDefault.FALSE},
-                {"smpcore.combat.bypass", PermissionDefault.FALSE}, {"smpcore.rtp", PermissionDefault.TRUE}, {"smpcore.rtpq", PermissionDefault.TRUE}, {"smpcore.homes.unlimited", PermissionDefault.FALSE}
+                {"smpcore.combat.bypass", PermissionDefault.FALSE}, {"smpcore.bounty", PermissionDefault.TRUE}, {"smpcore.rtp", PermissionDefault.TRUE}, {"smpcore.rtpq", PermissionDefault.TRUE}, {"smpcore.homes.unlimited", PermissionDefault.FALSE}
         };
         for (Object[] x : perms) {
             try {

@@ -276,6 +276,7 @@ public final class Net {
         plugin.economy.exportLocal();
         plugin.homes.exportLocal();
         plugin.favorites.exportLocal();
+        plugin.bounty.exportLocal();
         plugin.settings.exportLocal();
         plugin.discord.exportLocal();
         plugin.punish.exportLocal();
@@ -331,6 +332,7 @@ public final class Net {
             switch (r.ns()) {
                 case "home" -> plugin.homes.applyRemote(r.key(), r.value(), r.deleted());
                 case "fav" -> plugin.favorites.applyRemote(r.key(), r.value(), r.deleted());
+                case "bounty" -> plugin.bounty.applyRemote(r.key(), r.value(), r.deleted());
                 case "set" -> plugin.settings.applyRemote(r.key(), r.value(), r.deleted());
                 case "link", "rew", "rewd" -> plugin.discord.applyRemote(r.ns(), r.key(), r.value(), r.deleted());
                 case "punish" -> plugin.punish.applyRemote(r.key(), r.value(), r.deleted());

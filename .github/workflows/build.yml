@@ -15,54 +15,81 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Sync root Java uploads into Maven sources
-        if: github.ref_type == 'branch' && github.actor != 'github-actions[bot]'
+      - name: Sync changed root uploads into their source locations
+        if: github.ref_type == 'branch' && github.actor != 'github-actions[bot]' && github.event_name == 'push'
         shell: bash
         run: |
           python3 - <<'PY'
+          import json
+          import os
           from pathlib import Path
 
-          source_dir = Path("src/main/java/com/smpcore")
-          candidates = sorted(Path(".").glob("*.java"))
-          plan = []
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+          changed = set()
+          for commit in event.get("commits", []):
+              changed.update(commit.get("added", []))
+              changed.update(commit.get("modified", []))
+
+          routes = {}
+          for path in changed:
+              if "/" in path:
+                  continue
+              if path.endswith(".java"):
+                  routes[path] = f"src/main/java/com/smpcore/{path}"
+              elif path in {"config.yml", "paper-plugin.yml"}:
+                  routes[path] = f"src/main/resources/{path}"
+              elif path in {"DISCORD-SETUP.md", "NETWORK-SETUP.md"}:
+                  routes[path] = f"docs/{path}"
+
+          moves = []
           conflicts = []
-
-          for root_file in candidates:
-              content = root_file.read_bytes()
-              try:
-                  text = content.decode("utf-8")
-              except UnicodeDecodeError:
-                  conflicts.append(f"{root_file}: file is not UTF-8")
+          for source_name, target_name in sorted(routes.items()):
+              source = Path(source_name)
+              target = Path(target_name)
+              if not source.is_file():
                   continue
-              if "package com.smpcore;" not in text:
-                  conflicts.append(f"{root_file}: expected package com.smpcore;")
+              content = source.read_bytes()
+              if source.suffix == ".java":
+                  try:
+                      text = content.decode("utf-8")
+                  except UnicodeDecodeError:
+                      conflicts.append(f"{source}: file is not UTF-8")
+                      continue
+                  if "package com.smpcore;" not in text:
+                      conflicts.append(f"{source}: expected package com.smpcore;")
+                      continue
+              if target_name in changed and target.exists() and target.read_bytes() != content:
+                  conflicts.append(f"{source} and {target} both changed differently in this push")
                   continue
-
-              target = source_dir / root_file.name
-              if target.exists() and target.read_bytes() != content:
-                  conflicts.append(f"{root_file} differs from {target}")
-              else:
-                  plan.append((root_file, target, content))
+              moves.append((source, target, content))
 
           if conflicts:
               raise SystemExit(
-                  "Root Java sync stopped to avoid overwriting different Maven code:\n"
+                  "Upload sync stopped to avoid resolving two edited copies automatically:\n"
                   + "\n".join(conflicts)
-                  + "\nResolve these files manually, then push again."
+                  + "\nKeep one authoritative copy and push again."
               )
 
-          for root_file, target, content in plan:
+          for source, target, content in moves:
               target.parent.mkdir(parents=True, exist_ok=True)
               target.write_bytes(content)
-              root_file.unlink()
-              print(f"Moved {root_file} to {target}")
+              source.unlink()
+              print(f"Placed {source} at {target}")
+
+          # build.yml at the repository root is not an active Actions workflow.
+          # The enhanced workflow at .github/workflows/build.yml already includes
+          # its Maven build and artifact upload steps.
+          legacy_build = Path("build.yml")
+          if "build.yml" in changed and legacy_build.is_file():
+              legacy_build.unlink()
+              print("Removed duplicate root build.yml; active workflow is .github/workflows/build.yml")
           PY
 
           if [[ -n "$(git status --porcelain)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A -- '*.java'
-            git commit -m "Sync uploaded Java sources into Maven layout"
+            git add -A
+            git commit -m "Place uploaded files in project directories"
             git push origin "HEAD:${GITHUB_REF#refs/heads/}"
           fi
 
